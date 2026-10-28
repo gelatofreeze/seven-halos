@@ -1,0 +1,9 @@
+{
+  "name": "Seven Halos",
+  "short_name": "Seven Halos",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07060d",
+  "theme_color": "#07060d"
+}
