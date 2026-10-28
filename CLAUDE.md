@@ -30,6 +30,8 @@ One Creator; seven gods, each with a Halo; sibling love → betrayal → war →
 - Run `validateContent` / `validateVisuals` (part of `npm test`) when adding content; see docs/CONTENT.md.
 - The world is data: add regions as `RegionDefinition`s in `src/data/world/` and register them in `src/world/regions.ts` (docs/WORLD.md). Never add a scene per area; `WorldScene` shows every region.
 - Region, checkpoint and cache ids are saved: never rename a shipped one. World progress lives in `profile.world`; per-session state (defeated enemies) in `WorldSession`.
+- NPCs, dialogue, quests and lore are data (`src/data/npcs.ts`, `dialogue.ts`, `quests.ts`, `lore.ts`), validated by `validateNarrative`. Dialogue outcomes and quest progress go through the simulation / `rpg/Quests.ts`, never through UI code. Render all narrative text as plain text.
+- Every prop kind declares `footprint` and `support` in `PROP_VISUALS`; `tests/prop-support.test.ts` must stay green (nothing floats, nothing hangs past its masonry).
 - Development-only features go through `DEV_TOOLS_ENABLED` / `src/dev/` and must compile out of `npm run build`; `npm run check` enforces this.
 
 ## Originality and licensing

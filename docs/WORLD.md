@@ -109,6 +109,38 @@ Props declare their lights in `PROP_VISUALS`; regions never place raw light spri
 
 **Traversal tests.** `tests/traversal.test.ts` drives the real movement code with a bot that holds a direction and jumps at walls and gap edges. It covers each region's main route, the way back, falling into the ravine, the optional climb and the sealed gate. `validateWorld`'s reachability check stays as a fast structural screen, but only these tests prove a route. Add one for every new mandatory route; if it fails, fix the geometry, not the movement tuning.
 
+**Prop support (2C.2a).** Every prop kind declares its `footprint` and `support` in `PROP_VISUALS`:
+- `floor`: the base rests on ground across its width;
+- `embedded`: it lies entirely inside masonry, e.g. a door lintel inside its wall;
+- `mounted`: its `mountPoint` is on a solid tile or on another prop's `mounts` (the arcade columns);
+- `none`: sky, light, overlay or distant art.
+
+`tests/prop-support.test.ts` checks every placed prop in every region against the real tiles. If it fails, fix the placement or the art, never by loosening the rule. Conventions it enforces:
+- Torches hang on columns or walls, or stand on a `torchPost`.
+- A doorway through a two-tile wall gets a lintel exactly as wide as the wall, set on the opening's top edge.
+- An arch must frame something real: a doorway, a shrine, a bridge.
+
+## NPCs, dialogue, quests and lore (2C.2a)
+All four are data, validated by `validateNarrative` (`tests/narrative.test.ts`):
+- **NPC** (`src/data/npcs.ts`): id, display name, region and anchor, facing, visual key (`render/views/NpcView.ts`), dialogue id.
+  - The simulation turns NPCs into interactables in their region (`Simulation.objects`).
+  - Focus priority is npc > lore/cache > shrine > door (`FOCUS_PRIORITY`), and one press acts on one object.
+  - An NPC must not share a shrine's zone (validated).
+- **Dialogue** (`src/data/dialogue.ts`): nodes of `speaker` + `text`, linked by `next` or by choices.
+  - `entries` pick the opening node from conditions (`{ quest, status, objective? }`, `{ checkpoint, lit }`), checked in order. The last entry is the default.
+  - Outcomes are a validated set (`startQuest` for now).
+  - Reaching an end counts as a `talk` quest event; dismissing doesn't.
+  - Text is always rendered as plain text.
+- **Quest** (`src/data/quests.ts`): id, main/side, title, description, ordered objectives, `rewards`, `next`.
+  - Objective kinds: `enterRegion`, `activateCheckpoint`, `talk`, `collect`. The engine is `rpg/Quests.ts`.
+  - Events advance only the current objective.
+  - On reaching an objective, state the player already has counts (a shrine lit before the quest began).
+  - A quest completes, and rewards are granted, exactly once.
+  - To add an objective kind: one union member, a `matches` case, an `alreadyMet` case.
+- **Lore** (`src/data/lore.ts`): id, title, plain-text paragraphs, region. Place it with a `{ type: 'lore', lore: '<id>' }` marker. Reading it records it in `profile.lore`, and it can be reread from the journal.
+
+Saved state (save v4) is `quests` (by quest id: status, objective index, progress), `lore` (ids read) and `world.visited`. Dialogue keeps no state of its own. On load, unknown ids are dropped and indices are clamped.
+
 ## Development regions
 The combat **Test Chamber** is registered only in development builds (`setUpDevWorld` in `src/dev/devTools.ts`):
 - Reach it from **MENU → Progression → Development tools → Go to the Test Chamber**, or with `?region=test-chamber`.

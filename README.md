@@ -44,6 +44,8 @@ Add `?debug=1` to the URL to start with the hitbox/state overlay on. Use `?touch
 
 ## The world
 You start just outside the **sanctuary**, a ruined refuge that will become your home base.
+- In the hall stands **the Oracle**. Walk up to her and press **E** (or tap **Talk · The Oracle**). Tap the panel, or press Enter, to continue; Esc or ✕ ends the conversation. Her task, **The First Omen**, sends you down the forest road and back. Afterwards the main quest begins: the Seven Halos (0/7).
+- **MENU → Journal** shows your quests and current objective, and everything you've read. Old stones by the roads have something to say (**Read**).
 1. Walk right into the hall. Stand at the **shrine** and press **E** (or tap **Light the shrine**). Lit shrines are where you return when you fall.
 2. Using a lit shrine opens its menu:
    - **Rest:** full health; ordinary enemies return.
