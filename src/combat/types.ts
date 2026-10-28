@@ -135,6 +135,8 @@ export interface Combatant {
   readonly stats: CombatStats;
   /** Horizontal centre, for front/back checks. */
   readonly centerX: number;
+  /** Defeated combatants deal no further damage, even later in the step they died. */
+  readonly isDead: boolean;
   /** Fill `out` with the current hurtbox; false if the combatant cannot be hit at all (e.g. dead). */
   getHurtbox(out: Rect): boolean;
   /** True while invincibility frames are active. */

@@ -3,7 +3,7 @@ import { PARRY } from '../../config/combat';
 import { PLAYER_MOVEMENT } from '../../config/movement';
 import { lerp } from '../../core/math';
 import type { Player } from '../../entities/player/Player';
-import { frameAt, PLAYER_ATTACK_FRAMES, PLAYER_FRAMES, PLAYER_SHEET, WEAPON_SHEETS, type PhaseFrames } from '../animation/specs';
+import { animFrame, findAnim, frameAt, PLAYER_ANIMS, PLAYER_ATTACK_FRAMES, PLAYER_FRAMES, PLAYER_SHEET, WEAPON_SHEETS, type PhaseFrames } from '../animation/specs';
 import { TEX } from '../textures/registerTextures';
 
 const AFTERIMAGES = 4;
@@ -60,7 +60,6 @@ export class PlayerView {
     // The sheet follows the equipped weapon (same frame layout on every sheet).
     const sheet = WEAPON_SHEETS[p.equipment.weapon.id] ?? PLAYER_SHEET.key;
     if (s.texture.key !== sheet) {
-      s.anims.stop();
       s.setTexture(sheet, 0);
       for (const g of this.ghosts) g.setTexture(sheet, 0);
     }
@@ -76,12 +75,12 @@ export class PlayerView {
       case 'land':
       case 'hurt':
       case 'dead':
-        s.anims.play(`${sheet}.${p.state}`, true);
+        // Timed from simulation state time: one-shots (land, hurt, dead) hold their last frame.
+        s.setFrame(animFrame(findAnim(PLAYER_ANIMS, p.state), p.fsm.time));
         break;
       case 'dodge': {
         const d = PLAYER_MOVEMENT.dodge;
         const total = d.startupFrames + d.invulnerableFrames + d.recoveryFrames;
-        s.anims.stop();
         s.setFrame(frameAt(PLAYER_FRAMES.dodge, Math.max(0, p.actionFrame) / total));
         if (p.actionFrame >= 0 && p.actionFrame % 3 === 0 && p.actionFrame !== this.lastGhostFrame && p.isDodgeInvulnerable()) {
           this.spawnGhost(x, y);
@@ -95,24 +94,21 @@ export class PlayerView {
         const runner = p.attack;
         const phase = runner.phase === 'done' ? 'recovery' : runner.phase;
         const set: PhaseFrames = PLAYER_ATTACK_FRAMES[runner.attack?.id ?? ''] ?? PLAYER_FRAMES.attack1;
-        s.anims.stop();
         if (runner.charging && set.charge) s.setFrame(set.charge[Math.floor(this.time * 10) % set.charge.length]!);
         else s.setFrame(frameAt(set[phase], runner.phaseProgress));
         break;
       }
       case 'guard':
-        s.anims.stop();
         s.setFrame(p.blockStunFrames > 0 ? PLAYER_FRAMES.guardImpact[0] : PLAYER_FRAMES.guard[0]);
         break;
       case 'parry': {
         const f = p.actionFrame;
         const P = PLAYER_FRAMES.parry;
-        s.anims.stop();
         s.setFrame(f < PARRY.startupFrames ? P.startup[0] : f < PARRY.startupFrames + PARRY.windowFrames ? P.window[0] : P.recovery[0]);
         break;
       }
       case 'guardBroken':
-        s.anims.play(`${sheet}.guardBroken`, true);
+        s.setFrame(animFrame(findAnim(PLAYER_ANIMS, 'guardBroken'), p.fsm.time));
         break;
     }
     this.updateChargeGlow(x, y);

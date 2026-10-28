@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { Viewport } from '../game/Viewport';
 import { getServices } from '../game/services';
-import { registerAnimations, registerPlaceholderTextures } from '../render/textures/registerTextures';
+import { registerPlaceholderTextures } from '../render/textures/registerTextures';
 
 /**
- * Boot: set up the viewport, then build textures and animations. Final art
+ * Boot: set up the viewport, then build textures. (Animations need no registration: views pick frames from simulation state time.) Final art
  * will be queued in `preload` with the same keys; placeholders only fill gaps.
  */
 export class BootScene extends Phaser.Scene {
@@ -21,7 +21,6 @@ export class BootScene extends Phaser.Scene {
     const container = this.game.canvas.parentElement ?? document.body;
     services.viewport = new Viewport(this.game, container);
     registerPlaceholderTextures(this);
-    registerAnimations(this);
     this.scene.start('TestChamber');
   }
 }

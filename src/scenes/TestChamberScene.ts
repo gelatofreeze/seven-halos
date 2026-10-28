@@ -92,7 +92,7 @@ export class TestChamberScene extends Phaser.Scene {
     this.debug = new DebugOverlay(this, this.sim, services.debug);
     services.onDebugToggle = () => this.debug.toggle();
     // Expose the simulation for automated browser checks and console inspection.
-    if (services.debug.enabled) (window as unknown as { __sevenHalos?: unknown }).__sevenHalos = { sim: this.sim };
+    if (services.debug.enabled) (window as unknown as { __sevenHalos?: unknown }).__sevenHalos = { sim: this.sim, scene: this };
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, level.widthPx, level.heightPx);

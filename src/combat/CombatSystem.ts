@@ -41,6 +41,8 @@ export class CombatSystem {
     for (const id of this.seenThisStep) this.liveInstances.add(id);
 
     for (const { hitbox, target, evaded } of detection.detect(combatants)) {
+      // An attacker killed earlier in this same step stops attacking immediately.
+      if (hitbox.owner.isDead || target.isDead) continue;
       const r = hitbox.rect;
       if (evaded) {
         this.events.push({ type: 'evade', x: r.x + r.w / 2, y: r.y + r.h / 2 });
