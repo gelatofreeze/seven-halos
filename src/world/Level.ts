@@ -10,6 +10,7 @@ export type PropKind =
   | 'shrine'
   | 'brazier'
   | 'torch'
+  | 'torchPost'
   | 'lore'
   | 'altar'
   | 'tree'
@@ -78,6 +79,8 @@ export type MarkerDef =
   | { type: 'checkpoint'; id: string; name: string; facing?: Facing }
   /** A one-time treasure cache. */
   | { type: 'cache'; id: string; reward: CacheReward }
+  /** Something readable (an inscription, a book): `lore` is an entry in data/lore.ts. Drawn as a lore stone. */
+  | { type: 'lore'; lore: string }
   /**
    * A doorway to another region. Walk-in by default; `interact: true` makes it
    * a door the player chooses to open. The zone covers `width` × `height`
@@ -181,7 +184,36 @@ export interface ExitObject {
   zone: Rect;
 }
 
-export type WorldObject = CheckpointObject | CacheObject | ExitObject;
+export interface LoreObject {
+  kind: 'lore';
+  /** The lore entry id (stable; also the object's id). */
+  id: string;
+  x: number;
+  y: number;
+  zone: Rect;
+}
+
+/** An NPC standing in the world. Built by the simulation from data/npcs.ts, not by the level parser. */
+export interface NpcObject {
+  kind: 'npc';
+  id: string;
+  name: string;
+  dialogue: string;
+  visual: string;
+  facing: Facing;
+  x: number;
+  y: number;
+  zone: Rect;
+}
+
+export type WorldObject = CheckpointObject | CacheObject | ExitObject | LoreObject | NpcObject;
+
+/**
+ * When the player stands where several objects' zones overlap, the highest
+ * priority wins (then the nearest): talking to someone beats reading, which
+ * beats using a shrine. One press acts on one object only.
+ */
+export const FOCUS_PRIORITY: Record<WorldObject['kind'], number> = { npc: 4, lore: 3, cache: 3, checkpoint: 2, exit: 1 };
 
 export interface Prop {
   kind: PropKind;
@@ -284,6 +316,10 @@ export function parseLevel(def: LevelDefinition): LevelData {
         case 'cache':
           claim(m.id);
           objects.push({ kind: 'cache', id: m.id, reward: m.reward, x, y, zone: { x: x - CACHE_ZONE.w / 2, y: y - CACHE_ZONE.h, w: CACHE_ZONE.w, h: CACHE_ZONE.h } });
+          break;
+        case 'lore':
+          claim(m.lore);
+          objects.push({ kind: 'lore', id: m.lore, x, y, zone: { x: x - CACHE_ZONE.w / 2, y: y - CACHE_ZONE.h, w: CACHE_ZONE.w, h: CACHE_ZONE.h } });
           break;
         case 'exit': {
           claim(m.id);

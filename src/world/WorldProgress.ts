@@ -14,6 +14,8 @@ export class WorldProgress {
   readonly checkpoints = new Set<string>();
   /** Permanent object flags, e.g. an opened treasure cache's id. */
   readonly flags = new Set<string>();
+  /** Regions the player has been to (location-discovery objectives). */
+  readonly visited = new Set<string>();
 
   /** Activate a checkpoint; true only the first time. */
   activate(id: string): boolean {
@@ -42,6 +44,7 @@ export class WorldProgress {
     this.respawn = null;
     this.checkpoints.clear();
     this.flags.clear();
+    this.visited.clear();
   }
 }
 

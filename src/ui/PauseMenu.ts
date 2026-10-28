@@ -4,6 +4,7 @@ import { getSlot, isSlotId, type SlotId } from '../data/equipmentSlots';
 import { renderDevSection } from '../dev/devTools';
 import type { SaveManager } from '../persistence/SaveGame';
 import type { Simulation } from '../world/Simulation';
+import { JournalPanel } from './JournalPanel';
 import { backpackCells, equipMessage, equipmentSlots, itemDetails, progression, upgradeMessage, validTargets, type CellView } from './menuModel';
 
 export type MenuLayout = 'wide' | 'split' | 'tabs';
@@ -69,6 +70,7 @@ export class PauseMenu {
   /** A drag just ended: ignore the click the browser sends after pointerup. */
   private suppressClickUntil = 0;
   private upgrading = false;
+  private readonly journal: JournalPanel;
 
   constructor(
     parent: HTMLElement,
@@ -91,7 +93,10 @@ export class PauseMenu {
     const close = el('button', 'pm-close', '✕');
     close.setAttribute('aria-label', 'Close menu');
     close.addEventListener('click', () => this.close());
-    header.append(this.currencies, this.tabs, close);
+    const journal = el('button', 'pm-tab pm-journal', 'Journal');
+    journal.dataset.key = 'journal';
+    journal.addEventListener('click', () => this.journal.open());
+    header.append(this.currencies, this.tabs, journal, close);
 
     const body = el('div', 'pm-body');
     const area = (name: Area, title: string, cls: string) => {
@@ -134,6 +139,7 @@ export class PauseMenu {
       if (this.drag?.active) e.preventDefault();
     }, { passive: false });
     parent.appendChild(this.root);
+    this.journal = new JournalPanel(parent, sim.profile);
 
     window.addEventListener('pointermove', this.onPointerMove, { passive: false });
     window.addEventListener('pointerup', this.onPointerUp);
@@ -161,8 +167,15 @@ export class PauseMenu {
     this.focusKey(`bag:${this.selectedUid}`);
   }
 
+  /** Open straight onto the journal (e.g. from a quest toast later). */
+  openJournal(): void {
+    this.open();
+    this.journal.open();
+  }
+
   close(): void {
     if (!this.isOpen) return;
+    this.journal.close();
     this.cancelDrag();
     this.isOpen = false;
     this.root.style.display = 'none';
@@ -179,6 +192,7 @@ export class PauseMenu {
     window.removeEventListener('keydown', this.onKeyDown, { capture: true });
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('blur', this.cancelDrag);
+    this.journal.destroy();
     this.root.remove();
   }
 
@@ -629,6 +643,10 @@ export class PauseMenu {
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (!this.isOpen) return;
     e.stopImmediatePropagation();
+    if (this.journal.isOpen) {
+      this.journal.handleKey(e);
+      return;
+    }
     if (e.code === 'Escape') {
       e.preventDefault();
       if (this.drag) this.cancelDrag();

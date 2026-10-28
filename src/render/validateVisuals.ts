@@ -2,6 +2,8 @@ import type { Content } from '../data/validateContent';
 import { GAME_CONTENT } from '../data/validateContent';
 import { findAnim, PLAYER_ANIMS, PLAYER_ATTACK_FRAMES, PLAYER_SHEET, WEAPON_SHEETS, type AnimSpec, type PhaseFrames, type SheetSpec } from './animation/specs';
 import { ENEMY_VISUALS } from './views/enemyProfiles';
+import { NPC_VISUALS } from './views/NpcView';
+import { NPCS } from '../data/npcs';
 
 /** Animation names every enemy profile must provide (see EnemyView). */
 const ENEMY_ANIMS = ['idle', 'walk', 'stagger', 'parried', 'broken', 'riposted', 'dead'];
@@ -62,5 +64,6 @@ export function validateVisuals(c: Content = GAME_CONTENT): string[] {
     if (!(d.fadeDelay >= 0 && d.fadeDuration > 0 && d.remainsAlpha >= 0 && d.remainsAlpha <= 1)) err(`enemy "${e.id}": invalid death presentation`);
     if (e.respawnDelay !== null && !d.remains && d.fadeDelay + d.fadeDuration >= e.respawnDelay) err(`enemy "${e.id}": still fading when it respawns`);
   }
+  for (const npc of Object.values(NPCS)) if (!NPC_VISUALS[npc.visual]) err(`npc "${npc.id}": no visual "${npc.visual}" in render/views/NpcView.ts`);
   return errors;
 }

@@ -38,8 +38,10 @@ import {
   buildShrineArch,
   buildStream,
   buildTorch,
+  buildTorchPost,
   buildWaymarker,
 } from './architectureArt';
+import { buildOracle } from './npcArt';
 import { buildBush, buildCache, buildGate, buildPlinth, buildRuin, buildTree } from './worldArt';
 
 /** Texture keys used by the presentation layer. Final art loaded via the Loader must use the same keys. */
@@ -71,6 +73,8 @@ export const TEX = {
   plinth: 'prop.plinth',
   brazierBase: 'prop.brazier.base',
   torch: 'prop.torch',
+  torchPost: 'prop.torch-post',
+  npcOracle: 'npc.oracle',
   flame: 'fx.flame',
   sanctuaryWall: 'prop.sanctuary.wall',
   sanctuaryFrame: 'prop.sanctuary.frame',
@@ -136,6 +140,8 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
   add(TEX.plinth, buildPlinth);
   add(TEX.brazierBase, buildBrazierBase);
   add(TEX.torch, buildTorch);
+  add(TEX.torchPost, buildTorchPost);
+  add(TEX.npcOracle, buildOracle);
   if (!t.exists(TEX.flame)) {
     const flame = t.addCanvas(TEX.flame, buildFlameSheet(4));
     for (let f = 0; f < 4; f++) flame?.add(f, 0, f * 10, 0, 10, 14);

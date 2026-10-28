@@ -7,6 +7,8 @@ export function promptLabel(focus: WorldObject | null, progress: WorldProgress):
   if (!focus) return null;
   if (focus.kind === 'checkpoint') return progress.isActive(focus.id) ? `Rest · ${focus.name}` : `Light the shrine`;
   if (focus.kind === 'cache') return progress.hasFlag(focus.id) ? null : 'Open the cache';
+  if (focus.kind === 'npc') return `Talk · ${focus.name}`;
+  if (focus.kind === 'lore') return 'Read';
   return focus.interact ? focus.label : null;
 }
 

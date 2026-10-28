@@ -79,7 +79,10 @@ export class GameWorld {
     this.lastEnterReason = reason;
     if (!def.dev) {
       this.profile.world.location = { ...this.location };
+      this.profile.world.visited.add(loc.region);
       this.profile.touch();
+      // Quests that wait for the player to reach this region (announced in the new region).
+      this.sim.questEvent({ type: 'enterRegion', region: loc.region });
     }
   }
 

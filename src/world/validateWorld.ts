@@ -1,5 +1,6 @@
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
+import { LORE } from '../data/lore';
 import { PLAYER_MOVEMENT } from '../config/movement';
 import { parseLevel, TILE, type LevelData, type WorldObject } from './Level';
 import { REGIONS, WORLD_START, type RegionDefinition } from './regions';
@@ -47,6 +48,7 @@ export function validateWorld(regions: readonly RegionDefinition[] = REGIONS, st
         if (other) err(`${where}: persistent id "${o.id}" is also used in region "${other}"`);
         globalIds.set(o.id, id);
       }
+      if (o.kind === 'lore' && !LORE[o.id]) err(`${where}: lore marker names unknown entry "${o.id}"`);
       if (o.kind === 'cache') {
         for (const it of o.reward.items ?? []) {
           if (!ITEMS[it.item]) err(`${where}: cache "${o.id}" rewards unknown item "${it.item}"`);

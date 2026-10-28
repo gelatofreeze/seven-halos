@@ -83,7 +83,7 @@ describe('Forest composition', () => {
 
   it('keeps every enemy, the cache, the shrine and both exits of 2C.1', () => {
     expect(forest.enemySpawns.map((e) => e.enemyId).sort()).toEqual(['barrow-reaper', 'hollow-sentinel', 'hollow-sentinel']);
-    expect(forest.objects.map((o) => o.id).sort()).toEqual(['forest.cache.canopy', 'forest.shrine', 'forest.to-sanctuary']);
+    expect(forest.objects.map((o) => o.id).sort()).toEqual(['forest.cache.canopy', 'forest.shrine', 'forest.to-sanctuary', 'lore.sealed-gate']);
   });
 });
 

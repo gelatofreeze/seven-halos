@@ -252,23 +252,41 @@ export function buildHalo(): HTMLCanvasElement {
   return canvas;
 }
 
-/** Stone door frame with a keystone, drawn over a two-tile-thick wall's doorway. */
+/** Door lintel geometry: exactly a two-tile wall's thickness, sitting on the opening's top edge. */
+export const LINTEL = { w: 32, h: 14 } as const;
+
+/**
+ * A flat (jack) arch over a doorway through a two-tile-thick wall: wedge
+ * stones with a keystone, set into the wall above the opening. It is exactly
+ * as wide as the wall and its bottom edge is the top of the opening, so it
+ * never hangs past the masonry or into the passage.
+ */
 export function buildDoorArch(): HTMLCanvasElement {
-  const w = 44;
-  const h = 52;
+  const { w, h } = LINTEL;
   const { canvas, ctx } = createCanvas(w, h);
   const cx = w / 2;
   ctx.fillStyle = C.stoneLight;
-  arch(ctx, cx, 40, 4, h);
-  ctx.fill();
-  ctx.globalCompositeOperation = 'destination-out';
-  arch(ctx, cx, 28, 14, h);
-  ctx.fill();
-  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = C.stoneDark;
+  // Radial joints between the wedge stones, fanning out from below the opening.
+  for (let i = 1; i < 8; i++) {
+    if (i === 4) continue;
+    const xb = (i / 8) * w;
+    const xt = cx + (xb - cx) * 1.35;
+    ctx.beginPath();
+    ctx.moveTo(xb, h);
+    ctx.lineTo(xt, 0);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = C.stoneDark;
+    ctx.stroke();
+  }
+  ctx.fillRect(0, h - 1, w, 1);
   ctx.fillStyle = C.stoneHighlight;
-  ctx.fillRect(2, 22, 2, h - 22);
+  ctx.fillRect(0, 0, w, 1);
   ctx.fillStyle = GOLD;
-  ctx.fillRect(cx - 3, 4, 6, 8);
+  ctx.fillRect(cx - 3, 1, 6, h - 2);
+  ctx.fillStyle = GOLD_LIGHT;
+  ctx.fillRect(cx - 3, 1, 6, 1);
   quantizeAlpha(ctx, w, h);
   mirrorLeftHalf(ctx, w, h);
   return canvas;
@@ -319,14 +337,50 @@ export function buildWaymarker(): HTMLCanvasElement {
   return canvas;
 }
 
-/** Iron wall bracket for a torch (the flame is animated separately). */
+/** Wall sconce geometry: the plate must sit on masonry (a column or a wall). */
+export const SCONCE = { w: 10, h: 22, plate: { w: 8, h: 12 } } as const;
+
+/**
+ * A wall sconce: a riveted iron plate fixed to the stone, and the torch held
+ * out from it in a ring (the flame is animated separately).
+ */
 export function buildTorch(): HTMLCanvasElement {
-  const { canvas, ctx } = createCanvas(10, 22);
+  const { w, h } = SCONCE;
+  const { canvas, ctx } = createCanvas(w, h);
+  // Plate.
   ctx.fillStyle = C.iron;
-  ctx.fillRect(4, 8, 2, 14);
-  ctx.fillRect(2, 6, 6, 3);
+  ctx.fillRect(1, 8, 8, 12);
+  ctx.fillStyle = C.stoneDark;
+  ctx.fillRect(1, 19, 8, 1);
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(2, 9, 1, 1);
+  ctx.fillRect(7, 9, 1, 1);
+  ctx.fillRect(2, 18, 1, 1);
+  ctx.fillRect(7, 18, 1, 1);
+  // Ring and torch.
+  ctx.fillStyle = '#7a7f92';
+  ctx.fillRect(3, 6, 4, 2);
   ctx.fillStyle = C.wood;
-  ctx.fillRect(3, 3, 4, 4);
+  ctx.fillRect(4, 2, 2, 12);
+  ctx.fillStyle = C.woodLight;
+  ctx.fillRect(4, 2, 1, 12);
+  return canvas;
+}
+
+/** A free-standing torch post (iron bowl on a pole, on a stone foot), 10 x 44. */
+export function buildTorchPost(): HTMLCanvasElement {
+  const { canvas, ctx } = createCanvas(10, 44);
+  ctx.fillStyle = C.stone;
+  ctx.fillRect(1, 38, 8, 6);
+  ctx.fillStyle = C.stoneHighlight;
+  ctx.fillRect(1, 38, 8, 1);
+  ctx.fillStyle = C.wood;
+  ctx.fillRect(4, 6, 2, 32);
+  ctx.fillStyle = C.iron;
+  ctx.fillRect(1, 3, 8, 3);
+  ctx.fillRect(3, 6, 4, 2);
+  ctx.fillStyle = '#ffb35c';
+  ctx.fillRect(2, 2, 6, 1);
   return canvas;
 }
 
