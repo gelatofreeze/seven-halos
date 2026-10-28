@@ -3,7 +3,7 @@ import type { RegionDefinition } from '../../world/regions';
 /**
  * Test chamber, west to east:
  * 1. Movement course: start shrine, steps, one-way platforms, 3-tile pillar,
- *    4-tile pit, then the Hollow Sentinel arena.
+ *    4-tile pit, then the Vowcarved Sentinel arena.
  * 2. Low-ceiling corridor and a one-way climb to a hidden ledge.
  * 3. A 3-tile gap, then the Barrow Reaper arena with two perches.
  * 4. Over a low pillar: the comparison area. A Sentinel holds the floor; a

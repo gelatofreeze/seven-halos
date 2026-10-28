@@ -12,9 +12,9 @@ Content is data. Gameplay code shouldn't change to add an enemy, weapon or item.
 
 ## A new enemy
 1. **Attacks** in `ATTACKS` (`kind: 'enemy'`). Keep every startup ≥ 24 frames so it can be reacted to, and give each one a distinct telegraph.
-2. **Definition** in `src/data/enemies.ts` (`ENEMIES`). Start from the Barrow Reaper (spacing, retreat) or the Hollow Sentinel (slow, hyper-armoured). Fields: body, health, posture, AI ranges, `attacks` options (weight and range window), reactions, `respawnDelay`, `rewards` `{ experience, gold, weaponXp }`, `loot` entries (`chance` within 0..1).
+2. **Definition** in `src/data/enemies.ts` (`ENEMIES`). Start from the Barrow Reaper (spacing, retreat) or the Vowcarved Sentinel (slow, hyper-armoured). Fields: body, health, posture, AI ranges, `attacks` options (weight and range window), reactions, `respawnDelay`, `rewards` `{ experience, gold, weaponXp }`, `loot` entries (`chance` within 0..1).
 3. **Visual profile** in `src/render/views/enemyProfiles.ts`: sheet, the animations `idle, walk, stagger, parried, broken, riposted, dead`, telegraph visuals for every attack, and `death` (fade delay and duration, or `remains`). The fade must finish before `respawnDelay`.
-4. **Placement:** put a level marker in a level (`src/data/levels/`), mapped to the enemy id in `parseLevel` (`src/world/Level.ts`) next to `E` / `R`.
+4. **Placement:** give it a marker in a region's legend (`{ type: 'enemy', enemy: '<id>' }`, see docs/WORLD.md) and place that character in the region's rows.
 5. **Tests:** copy the shape of `tests/reaper.test.ts` (telegraph-to-active gap, recovery window, AI choices).
 
 ## A new item or material

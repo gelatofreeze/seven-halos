@@ -54,7 +54,7 @@ Collision/hurtbox is 16×32 px. It's a hooded skeleton with green eye sockets an
 
 Enemy presentation (frames per attack, glint position, eye colour) lives in `src/render/views/enemyProfiles.ts`; `EnemyView` draws any enemy from its profile.
 
-## Hollow Sentinel — `sentinel`, 96×72 frames, feet at (48, 66)
+## Vowcarved Sentinel — `sentinel`, 96×72 frames, feet at (48, 66)
 Collision/hurtbox is 20×34 px. Ranges: idle 0–3, walk 4–9, windup 10–13 (telegraph, by startup progress), strike 14–15, recover 16–17, stagger/parried 18–19, dead 20–23, posture broken (kneeling, also held while parried) 24–25, riposted 26–27.
 
 ## Telegraph language

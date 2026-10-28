@@ -9,11 +9,15 @@ import { InputHub } from './input/InputHub';
 import { KeyboardSource } from './input/KeyboardSource';
 import { TouchControls } from './input/TouchControls';
 import { BootScene } from './scenes/BootScene';
-import { TestChamberScene } from './scenes/TestChamberScene';
+import { WorldScene } from './scenes/WorldScene';
 import { UIScene } from './scenes/UIScene';
 import { SaveManager } from './persistence/SaveGame';
 import { createBrowserStorage } from './platform/LocalStorageAdapter';
 import { PlayerProfile } from './rpg/Profile';
+import { DEV_TOOLS_ENABLED } from './config/build';
+import { setUpDevWorld } from './dev/devTools';
+import { Toasts } from './ui/Toasts';
+import { GameWorld } from './world/GameWorld';
 
 const app = document.getElementById('app')!;
 const container = document.getElementById('game')!;
@@ -22,6 +26,12 @@ const container = document.getElementById('game')!;
 const profile = new PlayerProfile();
 const save = new SaveManager(createBrowserStorage(), profile);
 save.load();
+
+// The world resumes where the profile left off (a new game starts at the sanctuary approach).
+const world = new GameWorld(profile, { devPickups: DEV_TOOLS_ENABLED });
+// Development builds register the combat test chamber and honour ?region=test-chamber.
+const devStart = DEV_TOOLS_ENABLED ? setUpDevWorld() : null;
+world.start(devStart ?? GameWorld.resumeLocation(profile));
 
 const services: GameServices = {
   input: new InputHub(),
@@ -32,6 +42,8 @@ const services: GameServices = {
   releaseInputs: () => undefined,
   profile,
   save,
+  world,
+  toasts: new Toasts(app),
 };
 const toggleDebug = () => services.onDebugToggle?.();
 const toggleMenu = () => services.onMenuToggle?.();
@@ -114,7 +126,7 @@ new Phaser.Game({
   // Placeholder sound uses its own Web Audio context.
   audio: { noAudio: true },
   callbacks: { preBoot: (game) => setServices(game, services) },
-  scene: [BootScene, TestChamberScene, UIScene],
+  scene: [BootScene, WorldScene, UIScene],
 });
 
 // Hide the desktop controls hint after a while.

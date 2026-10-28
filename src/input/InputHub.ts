@@ -39,6 +39,12 @@ export class InputHub implements InputProvider {
     this.holders.get(action)!.delete(source);
   }
 
+  /** A momentary press (e.g. the on-screen interaction prompt): delivered once, never left held. */
+  tap(action: ActionName, source: string): void {
+    this.press(action, source);
+    this.release(action, source);
+  }
+
   /** Set an analog horizontal axis for a source; 0 means "not steering". */
   setAxis(source: string, value: number): void {
     if (value === 0) this.axes.delete(source);

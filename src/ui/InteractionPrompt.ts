@@ -19,9 +19,13 @@ export class InteractionPrompt {
     this.root.type = 'button';
     this.root.style.display = 'none';
     this.root.tabIndex = -1;
-    // pointerdown, not click: it fires at once and the touch layer never sees it.
+    // Act on click (after the finger lifts), so the tap can't fall through
+    // onto whatever menu it opens; pointerdown is swallowed so nothing else sees it.
     this.root.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      e.stopPropagation();
+    });
+    this.root.addEventListener('click', (e) => {
       e.stopPropagation();
       this.onPress();
     });

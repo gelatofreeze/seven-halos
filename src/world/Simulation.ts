@@ -225,7 +225,8 @@ export class Simulation {
     if (this.exitsArmed && inside.kind === 'exit') this.requestTravelOut({ reason: 'exit', to: inside.to });
   }
 
-  private requestTravelOut(request: TravelRequest): void {
+  /** Leave the region (also used by development tools to jump between regions). */
+  requestTravelOut(request: TravelRequest): void {
     if (this.pendingTravel) return;
     this.pendingTravel = request;
     this.events.push({ type: 'travel', reason: request.reason });

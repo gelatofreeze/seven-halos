@@ -415,10 +415,16 @@ export class PauseMenu {
 
     // Development-only section; the call and the module compile out of commercial builds.
     if (DEV_TOOLS_ENABLED) {
-      renderDevSection(this.progressEl, this.sim, this.save, (message) => {
-        this.render();
-        this.say(message);
-      });
+      renderDevSection(
+        this.progressEl,
+        this.sim,
+        this.save,
+        (message) => {
+          this.render();
+          this.say(message);
+        },
+        () => this.close(),
+      );
     }
   }
 

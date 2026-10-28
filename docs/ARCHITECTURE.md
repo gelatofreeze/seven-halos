@@ -10,7 +10,7 @@ Devices ──► InputHub ──► InputFrame ──► Simulation.step() ─�
 ```
 
 ## Fixed timestep
-`TestChamberScene.update` feeds real frame time into `FixedTimestep` (60 Hz, max 5 steps per frame). Every gameplay rule runs in whole 1/60 s steps, so frame data, jump arcs and i-frames are identical on 60, 90 and 120 Hz screens. Views interpolate between each body's previous and current position by the leftover `alpha`.
+`WorldScene.update` feeds real frame time into `FixedTimestep` (60 Hz, max 5 steps per frame). Every gameplay rule runs in whole 1/60 s steps, so frame data, jump arcs and i-frames are identical on 60, 90 and 120 Hz screens. Views interpolate between each body's previous and current position by the leftover `alpha`.
 
 ## Directory map
 | Path | Responsibility |
@@ -22,10 +22,10 @@ Devices ──► InputHub ──► InputFrame ──► Simulation.step() ─�
 | `src/physics/` | Static collision world, swept AABB kinematic body |
 | `src/input/` | Logical actions, `InputHub`, keyboard and touch sources |
 | `src/entities/player/` | `Player` (body, resources, gating) and `PlayerStates` (state machine) |
-| `src/entities/enemy/` | `Enemy`: one data-driven melee enemy class (spacing, distance-based attack choice, retreat, posture, reactions, exactly-once death tracking). The Hollow Sentinel and Barrow Reaper are both `EnemyDefinition` data |
+| `src/entities/enemy/` | `Enemy`: one data-driven melee enemy class (spacing, distance-based attack choice, retreat, posture, reactions, exactly-once death tracking). The Vowcarved Sentinel and Barrow Reaper are both `EnemyDefinition` data |
 | `src/combat/` | Attack data types, `AttackRunner` (frames + charge), `HitDetection`, `Defense` (guard/parry resolution), `Damage`, `CombatSystem`, stamina/health/posture |
-| `src/data/` | Content: attacks/weapons, enemies, levels |
-| `src/world/` | Level parsing, `Simulation` (also rewards, loot and pickups), `Loot`, `Pickups`, simulation events |
+| `src/data/` | Content: attacks/weapons, enemies, items, regions (`data/world/`), the test chamber (`data/levels/`) |
+| `src/world/` | Level parsing, region registry, `GameWorld` (one region at a time, transition rules), `Simulation` (also rewards, loot, pickups, interaction, exits), `WorldProgress`, `Loot`, `Pickups`, events, world validation. See docs/WORLD.md |
 | `src/rpg/` | `PlayerProfile` (wallet, inventory, equipped weapon; the persistent player), `Wallet`, attributes |
 | `src/inventory/` | `Inventory` (owned `ItemInstance`s, separate from `ITEMS` definitions), `Equipment` (moveset + upgrade scaling) |
 | `src/persistence/` | `StorageAdapter` interface, versioned `SaveGame` (validate / migrate / back up), `SaveManager` |
@@ -45,6 +45,15 @@ Devices ──► InputHub ──► InputFrame ──► Simulation.step() ─�
 - **Animation never drives logic.** Attack and dodge sprites are picked from the logic frame counter, not the other way round.
 - **No per-step allocation** on the hot path: hitboxes are pooled and input frames are reused. Events are allocated only when something happens.
 - **Collision** uses exact swept, axis-separated movement against merged level rectangles, so a body cannot tunnel through thin solids. One-way platforms collide only from above. If levels get large, add a spatial grid in `CollisionWorld`.
+
+## World loop
+```
+GameWorld.start(saved location) ──► Simulation for that region only
+Player walks into an exit / dies / rests / fast-travels ──► Simulation.pendingTravel (simulation stops)
+WorldScene fades out, drops all input ──► GameWorld.completeTravel() ──► new Simulation ──► scene.restart()
+```
+- `WorldScene` is the only gameplay scene. A restart tears down every per-region sprite, light, particle emitter, DOM panel and listener on SHUTDOWN. The HUD scene, toasts, input devices and the profile live for the whole session.
+- Shrines, caches and doors share one interaction model: the simulation keeps a single `focus` object (the nearest one the player stands at), and one `interact` press acts on it only from a neutral grounded state. Presentation shows a prompt and never decides anything.
 
 ## RPG loop data flow
 ```

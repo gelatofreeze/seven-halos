@@ -61,3 +61,21 @@ describe('Pause menu input isolation', () => {
     expect(outcome(true)).toBe(false);
   });
 });
+
+describe('Interaction prompt input', () => {
+  it('a tap on the prompt presses interact exactly once and leaves nothing held', () => {
+    const hub = new InputHub();
+    const frame = createInputFrame();
+    hub.tap('interact', 'prompt');
+    hub.sample(frame);
+    expect(frame.interactPressed).toBe(true);
+    hub.sample(frame);
+    expect(frame.interactPressed).toBe(false);
+    expect(hub.isHeld('interact')).toBe(false);
+    // Transitions and menus drop a pending tap.
+    hub.tap('interact', 'prompt');
+    hub.discardPendingPresses();
+    hub.sample(frame);
+    expect(frame.interactPressed).toBe(false);
+  });
+});

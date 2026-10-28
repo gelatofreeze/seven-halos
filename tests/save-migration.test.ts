@@ -181,3 +181,61 @@ describe('Save format v2', () => {
     expect(profile.wallet.weaponXp).toBe(50);
   });
 });
+
+/** Exactly what update 2B.2's `serializeProfile` wrote (save v2), mid-game. */
+const REAL_V2 = {
+  version: 2,
+  savedAt: '2026-10-28T20:31:12.004Z',
+  currencies: { experience: 2210, gold: 498, weaponXp: 115 },
+  inventory: {
+    nextUid: 11,
+    items: [
+      { uid: 2, itemId: 'grave-dust', quantity: 9, upgradeLevel: 0 },
+      { uid: 5, itemId: 'mourning-crescent', quantity: 1, upgradeLevel: 4 },
+      { uid: 1, itemId: 'pilgrim-sword', quantity: 1, upgradeLevel: 2 },
+      { uid: 10, itemId: 'mourning-crescent', quantity: 1, upgradeLevel: 0 },
+    ],
+  },
+  equipment: { mainHand: 5 },
+};
+
+describe('Save migration v2 → v3', () => {
+  it('keeps every item, tier, the backpack order, equipment and currencies, and starts at the sanctuary', () => {
+    const raw = JSON.stringify(REAL_V2);
+    const { profile, status, storage, save } = loadFrom(raw);
+    expect(status).toBe('migrated');
+    expect(profile.inventory.all.map((i) => [i.uid, i.itemId, i.quantity, i.upgradeLevel])).toEqual(REAL_V2.inventory.items.map((i) => [i.uid, i.itemId, i.quantity, i.upgradeLevel]));
+    expect(profile.loadout.get('mainHand')).toBe(5);
+    expect([profile.wallet.experience, profile.wallet.gold, profile.wallet.weaponXp]).toEqual([2210, 498, 115]);
+    expect(profile.world.location).toBeNull();
+    expect(profile.world.checkpoints.size).toBe(0);
+    // Backed up first, then rewritten as v3.
+    expect(storage.load(migrationBackupKey(2))).toBe(raw);
+    expect(save.migrationBackedUp).toBe(true);
+    const stored = JSON.parse(storage.load(SAVE_KEY)!);
+    expect(stored.version).toBe(3);
+    expect(stored.world).toEqual({ location: null, respawn: null, checkpoints: [], flags: [] });
+    // Runs once.
+    expect(new SaveManager(storage, new PlayerProfile()).load()).toBe('loaded');
+  });
+
+  it('v1 saves still migrate all the way (v1 → v2 → v3), backing up the original v1', () => {
+    const raw = JSON.stringify(REAL_V1);
+    const { profile, status, storage } = loadFrom(raw);
+    expect(status).toBe('migrated');
+    expect(profile.wallet.weaponXp).toBe(270);
+    expect(profile.equippedWeaponUid).toBe(5);
+    expect(storage.load(migrationBackupKey(1))).toBe(raw);
+    expect(JSON.parse(storage.load(SAVE_KEY)!).version).toBe(3);
+  });
+
+  it('the v2 → v3 step is pure and deterministic', () => {
+    const input = structuredClone(REAL_V2);
+    const a = new PlayerProfile();
+    const b = new PlayerProfile();
+    applySave(JSON.stringify(input), a);
+    applySave(JSON.stringify(input), b);
+    expect(serializeProfile(a, new Date(0))).toEqual(serializeProfile(b, new Date(0)));
+    expect(input).toEqual(REAL_V2);
+  });
+});

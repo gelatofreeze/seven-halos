@@ -399,7 +399,7 @@ function reaperPoses(): Map<number, Pose> {
   return poses;
 }
 
-// ---- Hollow Sentinel: an empty suit of armour with a cold eye -----------------------------
+// ---- Vowcarved Sentinel: an empty suit of armour with a cold eye -----------------------------
 
 function drawSentinel(ctx: CanvasRenderingContext2D, ox: number, oy: number, p: Pose): void {
   const cx = ox + SENTINEL_SHEET.frameWidth / 2;

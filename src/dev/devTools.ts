@@ -1,5 +1,19 @@
+import { TEST_CHAMBER } from '../data/levels/testChamber';
 import type { SaveManager } from '../persistence/SaveGame';
+import { registerDevRegion, WORLD_START, type WorldLocation } from '../world/regions';
 import type { Simulation } from '../world/Simulation';
+
+/** A function, not a constant: a top-level property read would keep the chamber in commercial bundles. */
+const testChamberStart = (): WorldLocation => ({ region: TEST_CHAMBER.id, anchor: 'start' });
+
+/**
+ * Development builds only: register the combat test chamber as a region.
+ * Returns a start location when the URL asks for it (`?region=test-chamber`).
+ */
+export function setUpDevWorld(): WorldLocation | null {
+  registerDevRegion(TEST_CHAMBER);
+  return new URLSearchParams(location.search).get('region') === TEST_CHAMBER.id ? testChamberStart() : null;
+}
 
 /**
  * DEVELOPMENT-ONLY helpers, reachable only when `DEV_TOOLS_ENABLED` (see
@@ -21,6 +35,10 @@ export const devTools = {
     sim.profile.wallet.add({ experience: 500, gold: 200, weaponXp: 300 });
     sim.profile.touch();
   },
+  /** Jump to the test chamber, or back to the sanctuary from it. */
+  travel(sim: Simulation, to: WorldLocation): void {
+    sim.requestTravelOut({ reason: 'travel', to });
+  },
   resetSave(save: SaveManager, sim: Simulation): void {
     save.reset();
     sim.syncEquipmentFromProfile();
@@ -28,7 +46,7 @@ export const devTools = {
 };
 
 /** The pause menu's development section. Only ever called behind `DEV_TOOLS_ENABLED`. */
-export function renderDevSection(container: HTMLElement, sim: Simulation, save: SaveManager, done: (message: string) => void): void {
+export function renderDevSection(container: HTMLElement, sim: Simulation, save: SaveManager, done: (message: string) => void, close: () => void = () => undefined): void {
   const title = document.createElement('div');
   title.className = 'pm-dev-title';
   title.textContent = 'Development tools (test builds only)';
@@ -46,6 +64,14 @@ export function renderDevSection(container: HTMLElement, sim: Simulation, save: 
   add('Grant Mourning Crescent', () => devTools.grantItem(sim, 'mourning-crescent'), 'Mourning Crescent added to your inventory.');
   add('Drop scythe in front', () => devTools.dropInFront(sim, 'mourning-crescent'), 'A scythe lies in front of you. Close this and walk over it.');
   add('+ Currencies', () => devTools.addCurrencies(sim), 'Added 500 Character XP, 200 Gold, 300 Weapon XP.');
+  const inChamber = sim.level.id === TEST_CHAMBER.id;
+  const travel = document.createElement('button');
+  travel.textContent = inChamber ? 'Return to the sanctuary' : 'Go to the Test Chamber';
+  travel.addEventListener('click', () => {
+    devTools.travel(sim, inChamber ? WORLD_START : testChamberStart());
+    close();
+  });
+  row.appendChild(travel);
   add('Reset save', () => devTools.resetSave(save, sim), 'Save reset: fresh profile.');
   container.append(title, row);
 }

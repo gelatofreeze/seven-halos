@@ -14,6 +14,8 @@ export class ShrineMenu {
   private readonly panel: HTMLElement;
   private shrineId = '';
   private view: 'main' | 'travel' = 'main';
+  /** Ignore clicks just after opening (a tap that opened the menu must not also choose an option). */
+  private openedAt = 0;
 
   constructor(
     parent: HTMLElement,
@@ -40,6 +42,7 @@ export class ShrineMenu {
     this.shrineId = shrineId;
     this.view = 'main';
     this.isOpen = true;
+    this.openedAt = performance.now();
     this.root.style.display = 'flex';
     this.onChange(true);
     this.render(firstTime);
@@ -62,7 +65,9 @@ export class ShrineMenu {
     const b = document.createElement('button');
     b.className = `sm-button ${cls}`;
     b.textContent = label;
-    b.addEventListener('click', onClick);
+    b.addEventListener('click', () => {
+      if (performance.now() - this.openedAt > 300) onClick();
+    });
     return b;
   }
 

@@ -83,7 +83,7 @@ Why: in 2B the scythe lost on every axis except reach. It was slower, costlier a
 ## Riposte (`RIPOSTE`)
 Pressing light attack within 44 px (and 20 px vertically) of an enemy that is **parried** or **posture-broken** performs a riposte instead: player invulnerable, 12/4/26 frames, 60 base damage. The opening is consumed when the riposte starts (`claimRiposte`), so one opening allows exactly one riposte. A riposted Sentinel is knocked down for 60 frames, can't be riposted again, and its posture resets. Extra normal hits on a reeling enemy deal damage but don't extend the opening.
 
-## Hollow Sentinel behaviour
+## Vowcarved Sentinel behaviour
 - Walks into range (40 px) and picks a cleave by deterministic weighted choice: standard 65%, delayed 35%. After being parried, the weights flip (30/70), so repeated parrying is gambled against the delay.
 - **Read the glint, not the windup**: the white glint always shows in the last third of the startup, for both variants.
 - 0.9 s between attacks. Punishes a broken guard immediately.
