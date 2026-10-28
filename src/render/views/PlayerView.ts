@@ -3,7 +3,7 @@ import { PARRY } from '../../config/combat';
 import { PLAYER_MOVEMENT } from '../../config/movement';
 import { lerp } from '../../core/math';
 import type { Player } from '../../entities/player/Player';
-import { frameAt, PLAYER_FRAMES, PLAYER_SHEET } from '../animation/specs';
+import { frameAt, PLAYER_ATTACK_FRAMES, PLAYER_FRAMES, PLAYER_SHEET, WEAPON_SHEETS, type PhaseFrames } from '../animation/specs';
 import { TEX } from '../textures/registerTextures';
 
 const AFTERIMAGES = 4;
@@ -57,6 +57,13 @@ export class PlayerView {
     const x = this.footX(alpha);
     const y = this.footY(alpha);
     const s = this.sprite;
+    // The sheet follows the equipped weapon (same frame layout on every sheet).
+    const sheet = WEAPON_SHEETS[p.equipment.weapon.id] ?? PLAYER_SHEET.key;
+    if (s.texture.key !== sheet) {
+      s.anims.stop();
+      s.setTexture(sheet, 0);
+      for (const g of this.ghosts) g.setTexture(sheet, 0);
+    }
     s.setPosition(x, y);
     s.setFlipX(p.facing < 0);
     this.light.setPosition(x, y - 14);
@@ -69,7 +76,7 @@ export class PlayerView {
       case 'land':
       case 'hurt':
       case 'dead':
-        s.anims.play(`player.${p.state}`, true);
+        s.anims.play(`${sheet}.${p.state}`, true);
         break;
       case 'dodge': {
         const d = PLAYER_MOVEMENT.dodge;
@@ -82,25 +89,15 @@ export class PlayerView {
         }
         break;
       }
-      case 'attack': {
-        const runner = p.attack;
-        const phase = runner.phase === 'done' ? 'recovery' : runner.phase;
-        s.anims.stop();
-        if (runner.attack?.kind === 'heavy') {
-          const H = PLAYER_FRAMES.heavy;
-          if (runner.charging) s.setFrame(H.charge[Math.floor(this.time * 10) % 2]!);
-          else s.setFrame(frameAt(H[phase], runner.phaseProgress));
-        } else {
-          const set = runner.attack?.id === 'sword.light.2' ? PLAYER_FRAMES.attack2 : PLAYER_FRAMES.attack1;
-          s.setFrame(frameAt(set[phase], runner.phaseProgress));
-        }
-        break;
-      }
+      case 'attack':
       case 'riposte': {
+        // Every attack maps to its own frames; logic phase and progress pick the frame.
         const runner = p.attack;
         const phase = runner.phase === 'done' ? 'recovery' : runner.phase;
+        const set: PhaseFrames = PLAYER_ATTACK_FRAMES[runner.attack?.id ?? ''] ?? PLAYER_FRAMES.attack1;
         s.anims.stop();
-        s.setFrame(frameAt(PLAYER_FRAMES.riposte[phase], runner.phaseProgress));
+        if (runner.charging && set.charge) s.setFrame(set.charge[Math.floor(this.time * 10) % set.charge.length]!);
+        else s.setFrame(frameAt(set[phase], runner.phaseProgress));
         break;
       }
       case 'guard':
@@ -115,7 +112,7 @@ export class PlayerView {
         break;
       }
       case 'guardBroken':
-        s.anims.play('player.guardBroken', true);
+        s.anims.play(`${sheet}.guardBroken`, true);
         break;
     }
     this.updateChargeGlow(x, y);
@@ -142,11 +139,14 @@ export class PlayerView {
     const level = r.chargeLevel;
     const full = level >= 1;
     const pulse = full ? 0.15 * Math.sin(this.time * 40) : 0;
+    // The scythe's charge escalates further and burns spectral green; the sword's is warm gold.
+    const scythe = p.equipment.weapon.category === 'scythe';
+    const growth = scythe ? 1.15 : 0.75;
     this.chargeGlow
       .setVisible(true)
-      .setPosition(x - p.facing * 9, y - 36)
-      .setTint(full ? 0xffffff : 0xffc46b)
-      .setScale(0.25 + level * 0.75 + pulse)
+      .setPosition(x - p.facing * (scythe ? 12 : 9), y - (scythe ? 40 : 36))
+      .setTint(full ? 0xffffff : scythe ? 0x8dffc0 : 0xffc46b)
+      .setScale(0.25 + level * growth + pulse)
       .setAlpha(0.35 + level * 0.55);
   }
 

@@ -1,4 +1,4 @@
-import { PLAYER_FRAMES, PLAYER_SHEET, SENTINEL_FRAMES, SENTINEL_SHEET, type SheetSpec } from '../animation/specs';
+import { PLAYER_FRAMES, PLAYER_SHEET, REAPER_FRAMES, REAPER_SHEET, SENTINEL_FRAMES, SENTINEL_SHEET, type SheetSpec } from '../animation/specs';
 import { createCanvas, quantizeAlpha } from './canvas';
 import { PALETTE as C } from './palette';
 
@@ -69,7 +69,34 @@ function withRotation(ctx: CanvasRenderingContext2D, cx: number, cy: number, ang
 
 // ---- Player: a mortal pilgrim knight --------------------------------------------------------
 
-function drawKnight(ctx: CanvasRenderingContext2D, ox: number, oy: number, p: Pose): void {
+type WeaponArt = 'sword' | 'scythe';
+
+/** Draw a scythe gripped at (hx, hy) pointing along angle `a`: pole with a crescent blade at the head. */
+function drawScythe(ctx: CanvasRenderingContext2D, hx: number, hy: number, a: number, poleLength: number, bladeLength: number, colors: { pole: string; blade: string; edge: string }): void {
+  const dx = Math.cos(a);
+  const dy = Math.sin(a);
+  // Perpendicular, on the "inside" of the swing.
+  const px = -dy;
+  const py = dx;
+  const headX = hx + dx * poleLength;
+  const headY = hy + dy * poleLength;
+  line(ctx, hx - dx * poleLength * 0.35, hy - dy * poleLength * 0.35, headX, headY, 2, colors.pole);
+  // Crescent blade: hooks back toward the wielder.
+  ctx.strokeStyle = colors.blade;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(headX, headY);
+  ctx.quadraticCurveTo(headX + px * bladeLength * 0.9 + dx * 3, headY + py * bladeLength * 0.9 + dy * 3, headX + px * bladeLength - dx * bladeLength * 0.55, headY + py * bladeLength - dy * bladeLength * 0.55);
+  ctx.stroke();
+  ctx.strokeStyle = colors.edge;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(headX + px * 2, headY + py * 2);
+  ctx.quadraticCurveTo(headX + px * bladeLength * 0.75, headY + py * bladeLength * 0.75, headX + px * (bladeLength - 1) - dx * bladeLength * 0.45, headY + py * (bladeLength - 1) - dy * bladeLength * 0.45);
+  ctx.stroke();
+}
+
+function drawKnight(ctx: CanvasRenderingContext2D, ox: number, oy: number, p: Pose, weaponArt: WeaponArt = 'sword'): void {
   const cx = ox + PLAYER_SHEET.frameWidth / 2;
   const feet = oy + PLAYER_SHEET.footY;
   const draw = () => {
@@ -118,6 +145,13 @@ function drawKnight(ctx: CanvasRenderingContext2D, ox: number, oy: number, p: Po
     const sy = shoulderY + 2;
     const hxp = sx + Math.cos(a) * reach;
     const hyp = sy + Math.sin(a) * reach;
+    if (weaponArt === 'scythe') {
+      // Spectral, wider trail for the scythe's sweeping arcs.
+      if (p.smear) smearArc(ctx, sx, sy, 25, p.smear[0], p.smear[1], '#c9ffe6');
+      line(ctx, sx, sy, hxp, hyp, 2, C.steelDark);
+      drawScythe(ctx, hxp, hyp, a, 18, 11, { pole: C.wood, blade: C.greatsword, edge: '#e8fff4' });
+      return;
+    }
     if (p.smear) smearArc(ctx, sx, sy, 20, p.smear[0], p.smear[1], '#cfeaff');
     line(ctx, sx, sy, hxp, hyp, 2, C.steelDark);
     const px = -Math.sin(a);
@@ -197,6 +231,171 @@ function playerPoses(): Map<number, Pose> {
   poses.set(F.riposte.active[0], { lean: 6, crouch: 3, weapon: 0.05, reach: 10, front: [9, 0], back: [-6, 0], flare: 4 });
   poses.set(F.riposte.recovery[0], { lean: 3, crouch: 2, weapon: 0.6, reach: 8, front: [6, 0], back: [-5, 0] });
   poses.set(F.guardBroken[0], { lean: -4, crouch: 3, weapon: 2.1, reach: 6, front: [2, 1], back: [-6, 0], flare: 4 });
+  return poses;
+}
+
+/**
+ * Scythe variant: the same base poses with the weapon carried upright or
+ * shouldered (so the crescent reads clearly), plus the scythe's own attacks.
+ */
+function playerScythePoses(): Map<number, Pose> {
+  const poses = playerPoses();
+  const F = PLAYER_FRAMES;
+  const carry = (frames: readonly number[], weapon: number, reach = 5) => {
+    for (const f of frames) poses.set(f, { ...poses.get(f)!, weapon, reach });
+  };
+  carry(F.idle, -1.25);
+  carry(F.run, -2.35, 4);
+  carry(F.jump, -1.6);
+  carry(F.fall, -1.3);
+  carry(F.land, -0.9);
+  carry(F.hurt, -2.2);
+  carry(F.guard, -1.45, 4);
+  carry(F.guardImpact, -1.6, 3);
+  const set = (f: number, pose: Pose) => poses.set(f, { front: [4, 0], back: [-4, 0], reach: 6, ...pose });
+  // Light 1: high-to-low forward sweep.
+  set(60, { lean: -2, weapon: -2.4 });
+  set(61, { lean: -3, weapon: -2.75, crouch: 1 });
+  set(62, { lean: 3, weapon: -0.9, smear: [-2.6, -0.6], front: [6, 0] });
+  set(63, { lean: 4, weapon: 0.5, smear: [-1.4, 0.8], front: [7, 0] });
+  set(64, { lean: 2, weapon: 0.95, front: [5, 0] });
+  // Light 2: returning backswing that also covers behind.
+  set(65, { lean: 3, weapon: 0.8 });
+  set(66, { lean: 4, weapon: 1.2, crouch: 2 });
+  set(67, { lean: -1, weapon: 2.4, smear: [0.6, 2.7] });
+  set(68, { lean: -2, weapon: 3.0, smear: [1.4, 3.1], back: [-6, 0] });
+  set(69, { lean: -1, weapon: 2.6 });
+  // Light 3: a full spin.
+  set(70, { crouch: 3, weapon: -2.8, lean: -2 });
+  set(71, { crouch: 4, weapon: 2.8, lean: -1, flare: 3 });
+  set(72, { lean: 3, weapon: -0.3, smear: [-3.1, 0.3], crouch: 2, flare: 4 });
+  set(73, { lean: -2, weapon: 2.9, smear: [0.3, 3.1], crouch: 2, flare: -3 });
+  set(74, { crouch: 2, weapon: 1.1 });
+  // Heavy: raised high, then a ground-splitting harvest arc.
+  set(75, { lean: -3, weapon: -2.0, reach: 5 });
+  set(76, { lean: -4, weapon: -2.5, crouch: 2, reach: 5 });
+  set(77, { lean: -4, weapon: -2.7, crouch: 3, reach: 5, flare: 2 });
+  set(78, { lean: -4, weapon: -2.75, crouch: 3, reach: 5, flare: 3 });
+  set(79, { lean: 5, weapon: -0.4, smear: [-2.9, -0.2], crouch: 3, front: [7, 0] });
+  set(80, { lean: 6, weapon: 1.0, smear: [-1.6, 1.2], crouch: 6, front: [8, 0] });
+  set(81, { lean: 5, weapon: 1.3, crouch: 6, front: [7, 0] });
+  // Riposte: hook the staggered enemy and draw the blade through.
+  set(82, { lean: -2, weapon: -1.8 });
+  set(83, { lean: -3, weapon: -2.2, crouch: 2 });
+  set(84, { lean: 6, weapon: 0.6, smear: [-2.2, 0.8], crouch: 4, front: [8, 0] });
+  set(85, { lean: 3, weapon: 1.1, crouch: 2 });
+  return poses;
+}
+
+// ---- Barrow Reaper: a hooded skeleton with a long scythe -------------------------------------
+
+const BONE = '#d9d3c1';
+const BONE_DARK = '#9a9282';
+const SHROUD = '#2a2140';
+const SHROUD_LIGHT = '#43356a';
+const REAPER_EYE = '#9dffb8';
+
+function drawReaper(ctx: CanvasRenderingContext2D, ox: number, oy: number, p: Pose): void {
+  const cx = ox + REAPER_SHEET.frameWidth / 2;
+  const feet = oy + REAPER_SHEET.footY;
+  const draw = () => {
+    const crouch = p.crouch ?? 0;
+    const lean = p.lean ?? 0;
+    const hipY = feet - 13 + crouch + (p.bob ?? 0);
+    const shoulderY = hipY - 12;
+    const front = p.front ?? [3, 0];
+    const back = p.back ?? [-3, 0];
+    const flare = p.flare ?? 0;
+    // Bony legs
+    line(ctx, cx - 1, hipY, cx + back[0], feet - 1 - back[1], 2, BONE_DARK);
+    line(ctx, cx + 1, hipY, cx + front[0], feet - 1 - front[1], 2, BONE);
+    // Tattered shroud from shoulders to knees, ragged hem streaming back.
+    poly(ctx, SHROUD, [
+      cx - 5 + lean, shoulderY - 1,
+      cx + 4 + lean, shoulderY - 1,
+      cx + 5, hipY + 4,
+      cx + 2, hipY + 8,
+      cx - 1, hipY + 5,
+      cx - 4 - flare, hipY + 9 - Math.max(0, -flare) * 2,
+      cx - 8 - flare * 1.5, hipY + 4 - Math.max(0, -flare) * 3,
+    ]);
+    // Ribcage glimpsed through the shroud
+    for (let i = 0; i < 3; i++) line(ctx, cx - 2 + lean * 0.8, shoulderY + 2 + i * 3, cx + 3 + lean * 0.8, shoulderY + 2 + i * 3, 1, BONE_DARK);
+    line(ctx, cx + lean * 0.5, shoulderY, cx, hipY, 1, BONE);
+    // Hood and skull
+    const hx = Math.round(cx - 4 + lean * 1.2);
+    const hy = Math.round(shoulderY - 10);
+    ctx.fillStyle = SHROUD_LIGHT;
+    ctx.fillRect(hx - 1, hy - 1, 10, 10);
+    ctx.fillStyle = BONE;
+    ctx.fillRect(hx + 2, hy + 2, 6, 6);
+    ctx.fillStyle = '#0b0a12';
+    ctx.fillRect(hx + 3, hy + 3, 2, 2);
+    ctx.fillRect(hx + 6, hy + 3, 1, 2);
+    ctx.fillRect(hx + 4, hy + 7, 3, 1);
+    if ((p.eye ?? 1) > 0) {
+      ctx.fillStyle = (p.eye ?? 1) > 1 ? '#ffffff' : REAPER_EYE;
+      ctx.fillRect(hx + 6, hy + 3, 1, 1);
+      ctx.fillRect(hx + 3, hy + 3, 1, 1);
+    }
+    // Arms and the long scythe
+    const a = p.weapon ?? -1.3;
+    const reach = p.reach ?? 6;
+    const sx = cx + 1 + lean;
+    const sy = shoulderY + 3;
+    const handX = sx + Math.cos(a) * reach;
+    const handY = sy + Math.sin(a) * reach;
+    if (p.smear) smearArc(ctx, sx, sy, 34, p.smear[0], p.smear[1], '#b6ffd0');
+    line(ctx, sx - 3, sy, handX, handY, 1, BONE_DARK);
+    line(ctx, sx + 2, sy - 1, handX, handY, 1, BONE);
+    drawScythe(ctx, handX, handY, a, 26, 17, { pole: '#4a3a2e', blade: '#aeb8c0', edge: '#eef7ff' });
+  };
+  if (p.rotate) withRotation(ctx, cx, feet - (p.pivot ?? 12), p.rotate, draw);
+  else draw();
+}
+
+function reaperPoses(): Map<number, Pose> {
+  const poses = new Map<number, Pose>();
+  const F = REAPER_FRAMES;
+  F.idle.forEach((f, i) => poses.set(f, { bob: i === 1 || i === 2 ? -1 : 0, weapon: -1.3, flare: i % 2 === 0 ? 1 : 2 }));
+  F.walk.forEach((f, i) => {
+    const t = (i / F.walk.length) * Math.PI * 2;
+    poses.set(f, {
+      lean: 3,
+      bob: Math.round(Math.sin(t)),
+      front: [Math.round(Math.sin(t) * 5), Math.max(0, Math.round(Math.cos(t) * 2))],
+      back: [Math.round(-Math.sin(t) * 5), Math.max(0, Math.round(-Math.cos(t) * 2))],
+      weapon: -1.0,
+      flare: 3 + (i % 2),
+    });
+  });
+  // Low Reap: blade drawn back low behind, then swept along the ground.
+  const S = F.sweep;
+  poses.set(S.startup[0], { lean: -1, crouch: 2, weapon: 2.5, front: [5, 0], back: [-5, 0], eye: 1 });
+  poses.set(S.startup[1], { lean: -2, crouch: 4, weapon: 2.75, front: [6, 0], back: [-6, 0], eye: 2 });
+  poses.set(S.startup[2], { lean: -3, crouch: 5, weapon: 2.95, front: [6, 0], back: [-7, 0], eye: 2 });
+  poses.set(S.active[0], { lean: 3, crouch: 5, weapon: 1.1, smear: [0.5, 2.9], front: [8, 0], back: [-6, 0], eye: 2 });
+  poses.set(S.active[1], { lean: 5, crouch: 4, weapon: 0.15, smear: [0.1, 2.2], front: [9, 0], back: [-6, 0], eye: 2 });
+  poses.set(S.recovery[0], { lean: 4, crouch: 3, weapon: -0.2, front: [7, 0], back: [-5, 0] });
+  poses.set(S.recovery[1], { lean: 2, crouch: 1, weapon: -0.8, front: [5, 0], back: [-4, 0] });
+  // Harvest Lunge: deep crouch with the scythe raised behind, then a gliding chop that sticks.
+  const H = F.harvest;
+  H.startup.forEach((f, i) => poses.set(f, { lean: -2 - i, crouch: 4 + i * 1.5, weapon: -2.1 - i * 0.25, front: [7, 0], back: [-7, 0], flare: 2, eye: i >= 2 ? 2 : 1 }));
+  poses.set(H.active[0], { lean: 7, crouch: 3, weapon: -0.6, smear: [-2.9, -0.4], front: [10, 0], back: [-8, 2], flare: 5, eye: 2 });
+  poses.set(H.active[1], { lean: 7, crouch: 5, weapon: 1.2, smear: [-1.5, 1.3], front: [10, 0], back: [-8, 0], flare: 4, eye: 2 });
+  poses.set(H.recovery[0], { lean: 6, crouch: 8, weapon: 1.45, front: [9, 0], back: [-7, 0] });
+  poses.set(H.recovery[1], { lean: 5, crouch: 7, weapon: 1.4, front: [8, 0], back: [-6, 0] });
+  poses.set(F.stagger[0], { lean: -5, weapon: -2.1, front: [2, 2], back: [-7, 0], flare: 5 });
+  poses.set(F.stagger[1], { lean: -3, crouch: 2, weapon: -1.8, front: [3, 0], back: [-6, 0], flare: 3 });
+  poses.set(F.broken[0], { lean: 3, crouch: 9, weapon: 1.8, front: [7, 0], back: [-3, 4] });
+  poses.set(F.broken[1], { lean: 3, crouch: 10, weapon: 1.85, front: [7, 0], back: [-3, 4] });
+  poses.set(F.riposted[0], { crouch: 8, weapon: 1.6, front: [6, 0], back: [-6, 0], rotate: -1.0, pivot: 3, eye: 0 });
+  poses.set(F.riposted[1], { lean: 2, crouch: 8, weapon: 1.7, front: [6, 0], back: [-4, 3] });
+  poses.set(F.dead[0], { lean: -3, crouch: 5, weapon: 2.0, eye: 0 });
+  poses.set(F.dead[1], { crouch: 10, weapon: 1.8, eye: 0 });
+  poses.set(F.dead[2], { crouch: 10, weapon: 1.6, rotate: -0.8, pivot: 3, eye: 0 });
+  poses.set(F.dead[3], { crouch: 10, weapon: 1.5, rotate: -1.45, pivot: 2, eye: 0 });
+  poses.set(F.retreat[0], { lean: -5, crouch: 1, weapon: -1.5, front: [2, 4], back: [-6, 0], flare: -3 });
   return poses;
 }
 
@@ -309,7 +508,15 @@ function buildSheet(spec: SheetSpec, poses: Map<number, Pose>, draw: (ctx: Canva
 }
 
 export function buildPlayerSheet(): HTMLCanvasElement {
-  return buildSheet(PLAYER_SHEET, playerPoses(), drawKnight);
+  return buildSheet(PLAYER_SHEET, playerPoses(), (ctx, ox, oy, p) => drawKnight(ctx, ox, oy, p, 'sword'));
+}
+
+export function buildPlayerScytheSheet(): HTMLCanvasElement {
+  return buildSheet(PLAYER_SHEET, playerScythePoses(), (ctx, ox, oy, p) => drawKnight(ctx, ox, oy, p, 'scythe'));
+}
+
+export function buildReaperSheet(): HTMLCanvasElement {
+  return buildSheet(REAPER_SHEET, reaperPoses(), drawReaper);
 }
 
 export function buildSentinelSheet(): HTMLCanvasElement {

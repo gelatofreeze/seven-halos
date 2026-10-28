@@ -133,6 +133,19 @@ export class Effects {
         this.ring(e.x, e.y + 10, 28, 0xffd27a, 0.45);
         this.shake('postureBreak');
         break;
+      case 'reward':
+        this.goldSparks.explode(10, e.x, e.y + 8);
+        break;
+      case 'lootDrop':
+        if (e.rarity === 'rare' || e.rarity === 'legendary') {
+          this.ring(e.x, e.y + 16, 30, 0xffd27a, 0.6);
+          this.goldSparks.explode(18, e.x, e.y + 12);
+          this.shake('parry');
+        }
+        break;
+      case 'pickup':
+        this.goldSparks.explode(e.rarity === 'common' ? 5 : 14, e.x, e.y);
+        break;
       case 'evade':
         this.sparks.explode(S.evade, e.x, e.y);
         break;

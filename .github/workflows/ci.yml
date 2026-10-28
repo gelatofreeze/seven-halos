@@ -17,4 +17,4 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npx vite build
+      - run: npx vite build && node scripts/verify-commercial-build.mjs

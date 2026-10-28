@@ -1,9 +1,12 @@
 import type Phaser from 'phaser';
 import { DISPLAY } from '../../config/display';
-import { PLAYER_ANIMS, PLAYER_SHEET, SENTINEL_ANIMS, SENTINEL_SHEET, type AnimSpec, type SheetSpec } from '../animation/specs';
-import { buildPlayerSheet, buildSentinelSheet } from './characterArt';
+import { PLAYER_ANIMS, PLAYER_SCYTHE_SHEET, PLAYER_SHEET, REAPER_ANIMS, REAPER_SHEET, SENTINEL_ANIMS, SENTINEL_SHEET, type AnimSpec, type SheetSpec } from '../animation/specs';
+import { buildPlayerScytheSheet, buildPlayerSheet, buildReaperSheet, buildSentinelSheet } from './characterArt';
 import {
+  buildAltar,
   buildBrazier,
+  buildMaterialIcon,
+  buildWeaponIcon,
   buildFarLayer,
   buildFog,
   buildLoreStone,
@@ -19,7 +22,9 @@ import {
 /** Texture keys used by the presentation layer. Final art loaded via the Loader must use the same keys. */
 export const TEX = {
   player: PLAYER_SHEET.key,
+  playerScythe: PLAYER_SCYTHE_SHEET.key,
   sentinel: SENTINEL_SHEET.key,
+  reaper: REAPER_SHEET.key,
   tiles: 'tiles',
   sky: 'bg.sky',
   moon: 'bg.moon',
@@ -34,6 +39,9 @@ export const TEX = {
   shrine: 'prop.shrine',
   brazier: 'prop.brazier',
   lore: 'prop.lore',
+  altar: 'prop.altar',
+  iconWeapon: 'icon.weapon',
+  iconMaterial: 'icon.material',
 } as const;
 
 function addSheet(textures: Phaser.Textures.TextureManager, spec: SheetSpec, canvas: HTMLCanvasElement): void {
@@ -51,7 +59,9 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
     if (!t.exists(key)) t.addCanvas(key, make());
   };
   if (!t.exists(TEX.player)) addSheet(t, PLAYER_SHEET, buildPlayerSheet());
+  if (!t.exists(TEX.playerScythe)) addSheet(t, PLAYER_SCYTHE_SHEET, buildPlayerScytheSheet());
   if (!t.exists(TEX.sentinel)) addSheet(t, SENTINEL_SHEET, buildSentinelSheet());
+  if (!t.exists(TEX.reaper)) addSheet(t, REAPER_SHEET, buildReaperSheet());
   add(TEX.tiles, () => buildTileset(DISPLAY.tileSize));
   add(TEX.sky, () => buildSky(256, 360));
   add(TEX.moon, buildMoon);
@@ -66,13 +76,17 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
   add(TEX.shrine, buildShrine);
   add(TEX.brazier, buildBrazier);
   add(TEX.lore, buildLoreStone);
+  add(TEX.altar, buildAltar);
+  add(TEX.iconWeapon, buildWeaponIcon);
+  add(TEX.iconMaterial, buildMaterialIcon);
 }
 
-function addAnims(scene: Phaser.Scene, sheet: string, anims: readonly AnimSpec[]): void {
+function addAnims(scene: Phaser.Scene, sheet: string, anims: readonly AnimSpec[], prefix = ''): void {
   for (const a of anims) {
-    if (scene.anims.exists(a.key)) continue;
+    const key = prefix + a.key;
+    if (scene.anims.exists(key)) continue;
     scene.anims.create({
-      key: a.key,
+      key,
       frames: a.frames.map((frame) => ({ key: sheet, frame })),
       frameRate: a.fps,
       repeat: a.loop ? -1 : 0,
@@ -81,6 +95,8 @@ function addAnims(scene: Phaser.Scene, sheet: string, anims: readonly AnimSpec[]
 }
 
 export function registerAnimations(scene: Phaser.Scene): void {
-  addAnims(scene, PLAYER_SHEET.key, PLAYER_ANIMS);
+  // Player animations exist once per weapon sheet: "<sheet>.<name>".
+  for (const sheet of [PLAYER_SHEET.key, PLAYER_SCYTHE_SHEET.key]) addAnims(scene, sheet, PLAYER_ANIMS, `${sheet}.`);
   addAnims(scene, SENTINEL_SHEET.key, SENTINEL_ANIMS);
+  addAnims(scene, REAPER_SHEET.key, REAPER_ANIMS);
 }

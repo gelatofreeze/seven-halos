@@ -1,6 +1,8 @@
 import type Phaser from 'phaser';
 import type { DebugFlags } from '../config/debug';
 import type { InputHub } from '../input/InputHub';
+import type { SaveManager } from '../persistence/SaveGame';
+import type { PlayerProfile } from '../rpg/Profile';
 import type { Viewport } from './Viewport';
 
 /** Long-lived, scene-independent services shared through the game registry. */
@@ -10,6 +12,13 @@ export interface GameServices {
   viewport: Viewport | null;
   /** Called by the active gameplay scene to register its debug toggle. */
   onDebugToggle: (() => void) | null;
+  /** Registered by the active gameplay scene: open/close the inventory. */
+  onMenuToggle: (() => void) | null;
+  /** Release all held inputs (touch + keyboard), e.g. when a menu opens. */
+  releaseInputs: () => void;
+  /** The persistent player profile and its save manager live for the whole session. */
+  profile: PlayerProfile;
+  save: SaveManager;
 }
 
 const KEY = 'services';

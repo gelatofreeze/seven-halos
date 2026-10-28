@@ -14,6 +14,8 @@ export const KEY_BINDINGS: Record<ActionName, readonly string[]> = {
 };
 
 export const DEBUG_TOGGLE_KEYS: readonly string[] = ['Backquote', 'F3'];
+/** Opens/closes the inventory. Menu actions are UI-level, not gameplay actions. */
+export const MENU_TOGGLE_KEYS: readonly string[] = ['KeyI', 'Tab', 'Escape'];
 
 /** Action buttons are anchored to the bottom-right corner (inside the safe area). */
 export interface TouchButtonConfig {

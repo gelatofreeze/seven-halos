@@ -11,21 +11,38 @@ import { TouchControls } from './input/TouchControls';
 import { BootScene } from './scenes/BootScene';
 import { TestChamberScene } from './scenes/TestChamberScene';
 import { UIScene } from './scenes/UIScene';
+import { SaveManager } from './persistence/SaveGame';
+import { createBrowserStorage } from './platform/LocalStorageAdapter';
+import { PlayerProfile } from './rpg/Profile';
 
 const app = document.getElementById('app')!;
 const container = document.getElementById('game')!;
+
+// Persistent profile: loaded once, saved by the gameplay scene when it changes.
+const profile = new PlayerProfile();
+const save = new SaveManager(createBrowserStorage(), profile);
+save.load();
 
 const services: GameServices = {
   input: new InputHub(),
   debug: createDebugFlags(),
   viewport: null,
   onDebugToggle: null,
+  onMenuToggle: null,
+  releaseInputs: () => undefined,
+  profile,
+  save,
 };
 const toggleDebug = () => services.onDebugToggle?.();
+const toggleMenu = () => services.onMenuToggle?.();
 
-new KeyboardSource(services.input, toggleDebug);
+new KeyboardSource(services.input, toggleDebug, toggleMenu);
 
-const utilityButtons = [{ label: 'DBG', onPress: toggleDebug }];
+// The inventory lives behind a small utility button rather than another large combat button.
+const utilityButtons = [
+  { label: 'BAG', onPress: toggleMenu },
+  { label: 'DBG', onPress: toggleDebug },
+];
 if (document.fullscreenEnabled) {
   utilityButtons.push({
     label: '⛶',
@@ -43,7 +60,14 @@ const touch = new TouchControls(services.input, app, utilityButtons, () => servi
 
 // ---- Browser hygiene: no scrolling, zooming or stuck inputs ------------------------------
 const block = (e: Event) => e.preventDefault();
-document.addEventListener('touchmove', block, { passive: false });
+// Block page scrolling everywhere except inside the inventory list, which may need to scroll.
+document.addEventListener(
+  'touchmove',
+  (e) => {
+    if (!(e.target instanceof Element && e.target.closest('.inventory-body'))) e.preventDefault();
+  },
+  { passive: false },
+);
 document.addEventListener('gesturestart', block);
 document.addEventListener('dblclick', block);
 document.addEventListener('contextmenu', block);
@@ -52,10 +76,12 @@ const releaseAll = () => {
   services.input.releaseAll();
   touch.releaseAll();
 };
+services.releaseInputs = releaseAll;
 window.addEventListener('blur', releaseAll);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     releaseAll();
+    save.saveIfChanged();
     sfx.suspend();
   } else {
     sfx.resume();
@@ -92,3 +118,6 @@ new Phaser.Game({
 
 // Hide the desktop controls hint after a while.
 setTimeout(() => document.getElementById('help')?.classList.add('faded'), 9000);
+
+// Save on the way out (tab closed, app backgrounded on iOS).
+window.addEventListener('pagehide', () => save.saveIfChanged());

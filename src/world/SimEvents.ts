@@ -1,4 +1,5 @@
 import type { AttackKind, Faction } from '../combat/types';
+import type { Rarity } from '../data/items';
 
 /**
  * One-way notifications from the simulation to presentation (sound, particles,
@@ -13,7 +14,7 @@ export type SimEvent =
   | { type: 'chargeStart'; x: number; y: number }
   | { type: 'chargeFull'; x: number; y: number }
   | { type: 'chargeEnd' }
-  | { type: 'telegraph'; x: number; y: number; facing: number }
+  | { type: 'telegraph'; x: number; y: number; facing: number; attackId: string }
   | { type: 'hit'; targetFaction: Faction; kind: AttackKind; x: number; y: number; damage: number; facing: number }
   | { type: 'block'; x: number; y: number; guardBroken: boolean; facing: number }
   | { type: 'parryAttempt'; x: number; y: number }
@@ -22,7 +23,11 @@ export type SimEvent =
   | { type: 'riposte'; x: number; y: number }
   | { type: 'evade'; x: number; y: number }
   | { type: 'death'; faction: Faction; x: number; y: number }
-  | { type: 'respawn'; faction: Faction; x: number; y: number };
+  | { type: 'respawn'; faction: Faction; x: number; y: number }
+  | { type: 'reward'; enemyName: string; x: number; y: number; experience: number; gold: number; forgePoints: number }
+  | { type: 'lootDrop'; itemId: string; rarity: Rarity; x: number; y: number }
+  | { type: 'pickup'; itemId: string; quantity: number; rarity: Rarity; x: number; y: number }
+  | { type: 'equip'; weaponId: string };
 
 export class SimEventQueue {
   readonly items: SimEvent[] = [];

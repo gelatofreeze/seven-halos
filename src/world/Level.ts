@@ -3,7 +3,7 @@ import type { Solid } from '../physics/CollisionWorld';
 export const TILE = { empty: 0, solid: 1, oneWay: 2 } as const;
 export type TileKind = (typeof TILE)[keyof typeof TILE];
 
-export type PropKind = 'shrine' | 'brazier' | 'lore';
+export type PropKind = 'shrine' | 'brazier' | 'lore' | 'altar';
 
 export interface LevelDefinition {
   id: string;
@@ -12,8 +12,9 @@ export interface LevelDefinition {
   /**
    * ASCII rows, top to bottom. Legend:
    *   #  solid stone          =  one-way platform
-   *   P  player spawn         E  enemy spawn (Hollow Sentinel)
-   *   S  shrine (checkpoint)  B  brazier light   L  lore / secret marker
+   *   P  player spawn         E  Hollow Sentinel   R  Barrow Reaper
+   *   S  shrine (checkpoint)  B  brazier light     L  lore / secret marker
+   *   A  armoury altar (holds test equipment in development builds)
    * Markers are placed on the tile the entity stands in (feet at the tile's bottom).
    */
   rows: readonly string[];
@@ -57,6 +58,8 @@ export function parseLevel(def: LevelDefinition): LevelData {
       row.push(ch === '#' ? TILE.solid : ch === '=' ? TILE.oneWay : TILE.empty);
       if (ch === 'P') playerSpawn = { x: footX, y: footY };
       else if (ch === 'E') enemySpawns.push({ enemyId: 'hollow-sentinel', x: footX, y: footY });
+      else if (ch === 'R') enemySpawns.push({ enemyId: 'barrow-reaper', x: footX, y: footY });
+      else if (ch === 'A') props.push({ kind: 'altar', x: footX, y: footY });
       else if (ch === 'S') props.push({ kind: 'shrine', x: footX, y: footY });
       else if (ch === 'B') props.push({ kind: 'brazier', x: footX, y: footY });
       else if (ch === 'L') props.push({ kind: 'lore', x: footX, y: footY });

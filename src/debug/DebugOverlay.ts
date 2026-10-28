@@ -77,7 +77,9 @@ export class DebugOverlay {
       this.fpsSmoothed += (1 / Math.max(dt, 1e-3) - this.fpsSmoothed) * 0.05;
       const p = sim.player;
       const b = p.body;
-      const e = sim.enemies[0];
+      // Nearest living enemy to the player.
+      let e = sim.enemies[0];
+      for (const c of sim.enemies) if (e && !c.isDead && Math.abs(c.body.footX - b.footX) < Math.abs(e.body.footX - b.footX)) e = c;
       this.panel.textContent = [
         `fps ${this.fpsSmoothed.toFixed(0)}  tick ${sim.tick}${sim.inHitstop ? '  HITSTOP' : ''}`,
         `player ${p.state}  frame ${p.actionFrame}  t ${p.fsm.time.toFixed(2)}`,
@@ -89,7 +91,7 @@ export class DebugOverlay {
           : '',
         `defense ${p.defense().mode}${p.blockStunFrames > 0 ? `  blockstun ${p.blockStunFrames}` : ''}`,
         e
-          ? `sentinel ${e.fsm.current}${e.fsm.is('attack') ? ` ${e.currentAttack.id} ${e.attack.phase} f${e.attack.frame}` : ''}  hp ${e.health.current}  posture ${e.posture.current.toFixed(0)}${e.canBeRiposted() ? '  RIPOSTE' : ''}`
+          ? `${e.def.name} ${e.fsm.current}${e.fsm.is('attack') ? ` ${e.currentAttack.id} ${e.attack.phase} f${e.attack.frame}` : ''}  hp ${e.health.current}  posture ${e.posture.current.toFixed(0)}${e.canBeRiposted() ? '  RIPOSTE' : ''}`
           : '',
       ]
         .filter(Boolean)

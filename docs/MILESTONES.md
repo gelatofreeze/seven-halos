@@ -23,8 +23,21 @@
 - [x] Parry/guard/posture/riposte feedback (rings, sparks, sounds, opening marker, posture bar)
 - [ ] Hand playtest on iPhone; tune values listed in docs/COMBAT.md
 
+### Update 2B — Weapon identity, enemy variety, loot, currency, equipment (done, pending device playtest)
+- [x] Mourning Crescent scythe: 3-hit sweeping light combo, heavy and charged heavy, riposte, own sheet and trails
+- [x] Barrow Reaper: spacing AI, low sweep (jumpable) and committed lunge, retreat hop, fragile posture
+- [x] Generic data-driven `Enemy` (Sentinel and Reaper are data)
+- [x] XP / Gold / Forge Point rewards, exactly once per kill, with feedback
+- [x] Seeded, data-driven drop tables (1% scythe), world pickups
+- [x] Inventory (definitions vs instances), equipping via BAG panel, guarded weapon switching
+- [x] Versioned browser saves through a storage abstraction; corrupt/newer-save handling
+- [x] Extended test chamber (Reaper arena, comparison area, armoury altar)
+- [x] Development tools compiled out of commercial builds (verified by `npm run check`)
+- [x] Naming screen and third-party record (docs/NAMING.md, docs/THIRD_PARTY.md)
+- [ ] Hand playtest on iPhone; tune values listed in the PR
+
 ### Next
-Running and jumping attacks, a second weapon class with a different moveset, a second enemy type (ranged or aggressive), player poise/armour, shields as equipment.
+Spending Forge Points (weapon upgrades) and Experience (levelling) at a shrine, running and jumping attacks, a ranged enemy, player poise/armour, shields as equipment.
 
 ## Phase 3 — RPG layer
 Classes and starting kits, attribute levelling with Experience, Gold vendors, Forge Point weapon upgrades, randomized loot tables with rare weapon drops, inventory/equipment UI, saving.

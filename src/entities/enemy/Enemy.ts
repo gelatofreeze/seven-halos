@@ -5,7 +5,7 @@ import { HITSTOP } from '../../config/combat';
 import { approach, type Facing } from '../../core/math';
 import { setRect, type Rect } from '../../core/Rect';
 import { StateMachine, type State } from '../../core/StateMachine';
-import type { EnemyDefinition } from '../../data/enemies';
+import type { EnemyAttackOption, EnemyDefinition } from '../../data/enemies';
 import { getAttack } from '../../data/weapons';
 import type { CollisionWorld } from '../../physics/CollisionWorld';
 import { KinematicBody } from '../../physics/KinematicBody';
@@ -19,25 +19,26 @@ export interface TargetView {
   readonly isGuardBroken: boolean;
 }
 
-export type SentinelStateId = 'idle' | 'approach' | 'attack' | 'stagger' | 'parried' | 'postureBroken' | 'riposted' | 'dead';
-type SentinelState = State<Sentinel, SentinelStateId>;
+export type EnemyStateId = 'idle' | 'approach' | 'attack' | 'retreat' | 'stagger' | 'parried' | 'postureBroken' | 'riposted' | 'dead';
+type EnemyState = State<Enemy, EnemyStateId>;
 
 const GRAVITY = 1100;
 const MAX_FALL = 420;
 
+let nextEnemyId = 100;
+
 /**
- * Training enemy: a hollow suit of armour guarding the test chamber. It walks
- * into range and swings one of two heavy cleaves: the standard one, or a
- * delayed variant that holds at the top to catch early rolls and parries.
- * Both are hyper-armoured. Posture fills from hits and parries; a full meter,
- * or a parry, opens a single riposte.
+ * A melee enemy driven entirely by its `EnemyDefinition`: spacing, attack
+ * options (chosen by distance and deterministic weighted randomness), an
+ * optional retreat hop, posture, hyper-armour and reactions. The Hollow
+ * Sentinel and the Barrow Reaper are both instances of this class with
+ * different data; enemy-specific presentation lives in the render layer.
  */
-export class Sentinel implements Combatant, RiposteTarget {
-  private static nextId = 100;
-  readonly combatId = Sentinel.nextId++;
+export class Enemy implements Combatant, RiposteTarget {
+  readonly combatId = nextEnemyId++;
   readonly faction = 'enemy' as const;
   readonly body: KinematicBody;
-  readonly fsm: StateMachine<Sentinel, SentinelStateId>;
+  readonly fsm: StateMachine<Enemy, EnemyStateId>;
   readonly health: Health;
   readonly posture: Posture;
   readonly attack = new AttackRunner();
@@ -51,11 +52,16 @@ export class Sentinel implements Combatant, RiposteTarget {
   hitsTaken = 0;
   /** True while a riposte opening exists and has not been used. */
   riposteOpen = false;
-  /** Set when this Sentinel was parried; biases its next attack choice. */
+  /** Set when this enemy was parried; biases its next attack choice. */
   wasParried = false;
-  /** Tests and tooling can force the next attack. */
+  /** Tests and tooling can force the next attack (still subject to its range). */
   forcedAttack: string | null = null;
   currentAttack: AttackDefinition;
+  /** Number of times this enemy has died. */
+  deaths = 0;
+  /** Set on death, consumed once by the simulation to grant rewards and roll loot. */
+  private deathPending = false;
+  private nextAttack: AttackDefinition | null = null;
 
   constructor(
     readonly def: EnemyDefinition,
@@ -71,7 +77,7 @@ export class Sentinel implements Combatant, RiposteTarget {
     this.posture = new Posture(def.posture);
     this.stats = { defense: def.defense, absorption: def.absorption, attackMultiplier: 1 };
     this.currentAttack = getAttack(def.attacks[0]!.attack);
-    this.fsm = new StateMachine<Sentinel, SentinelStateId>(this, SENTINEL_STATES, 'idle');
+    this.fsm = new StateMachine<Enemy, EnemyStateId>(this, ENEMY_STATES, 'idle');
   }
 
   get isDead(): boolean {
@@ -87,6 +93,13 @@ export class Sentinel implements Combatant, RiposteTarget {
     return this.fsm.is('parried') || this.fsm.is('postureBroken') || this.fsm.is('riposted');
   }
 
+  /** Longest reach of any attack option, px. */
+  get maxReach(): number {
+    let r = 0;
+    for (const o of this.def.attacks) r = Math.max(r, o.maxRange);
+    return r;
+  }
+
   step(dt: number): void {
     if (!this.isReeling) this.posture.update(dt);
     this.cooldown = Math.max(0, this.cooldown - dt);
@@ -94,6 +107,13 @@ export class Sentinel implements Combatant, RiposteTarget {
     this.fsm.update(dt);
     this.body.vy = Math.min(this.body.vy + GRAVITY * dt, MAX_FALL);
     this.body.step(this.world, dt);
+  }
+
+  /** True exactly once per death. */
+  consumeDeath(): boolean {
+    if (!this.deathPending) return false;
+    this.deathPending = false;
+    return true;
   }
 
   /** Signed horizontal distance to the target. */
@@ -112,27 +132,65 @@ export class Sentinel implements Combatant, RiposteTarget {
     if (Math.abs(dx) > 1) this.facing = dx > 0 ? 1 : -1;
   }
 
-  /** True if there is floor just ahead in the facing direction (no walking off ledges). */
-  hasGroundAhead(): boolean {
-    const probeX = this.body.footX + this.facing * (this.body.w / 2 + 2);
-    return this.world.isStandableAt(probeX, this.body.footY + 2);
+  /** True if there is floor just beyond the body in direction `dir` (no walking off ledges). */
+  hasGroundToward(dir: number): boolean {
+    const probeX = this.body.footX + dir * (this.body.w / 2 + 2);
+    return this.world.isStandableAt(probeX, this.body.footY + 2) && !this.world.isSolidAt(probeX, this.body.footY - 4);
   }
 
-  /** Weighted, deterministic choice of the next attack. */
-  chooseAttack(): AttackDefinition {
-    if (this.forcedAttack) return getAttack(this.forcedAttack);
-    // Punish a broken guard with the fastest option.
-    if (this.target.isGuardBroken) return getAttack(this.def.attacks[0]!.attack);
-    const options = this.def.attacks;
-    const weightOf = (o: (typeof options)[number]) => (this.wasParried ? (o.weightAfterParried ?? o.weight) : o.weight);
+  hasGroundAhead(): boolean {
+    return this.hasGroundToward(this.facing);
+  }
+
+  /**
+   * Weighted, deterministic choice among the attacks usable at `distance`.
+   * Returns null when nothing is in range.
+   */
+  chooseAttack(distance = Math.abs(this.dxToTarget())): AttackDefinition | null {
+    const inRange = (o: EnemyAttackOption) => distance >= o.minRange && distance <= o.maxRange;
+    if (this.forcedAttack) {
+      const option = this.def.attacks.find((o) => o.attack === this.forcedAttack);
+      return !option || inRange(option) ? getAttack(this.forcedAttack) : null;
+    }
     let total = 0;
-    for (const o of options) total += weightOf(o);
+    let fastest: AttackDefinition | null = null;
+    for (const o of this.def.attacks) {
+      if (!inRange(o)) continue;
+      total += this.weightOf(o);
+      const a = getAttack(o.attack);
+      if (!fastest || a.startupFrames < fastest.startupFrames) fastest = a;
+    }
+    if (!fastest) return null;
+    // Punish a broken guard with the fastest option.
+    if (this.target.isGuardBroken) return fastest;
     let roll = this.random() * total;
-    for (const o of options) {
-      roll -= weightOf(o);
+    for (const o of this.def.attacks) {
+      if (!inRange(o)) continue;
+      roll -= this.weightOf(o);
       if (roll < 0) return getAttack(o.attack);
     }
-    return getAttack(options[options.length - 1]!.attack);
+    return fastest;
+  }
+
+  private weightOf(o: EnemyAttackOption): number {
+    return this.wasParried ? (o.weightAfterParried ?? o.weight) : o.weight;
+  }
+
+  /** Begin an attack chosen by the approach logic. */
+  startAttack(attack: AttackDefinition): void {
+    this.nextAttack = attack;
+    this.fsm.transition('attack');
+  }
+
+  takeQueuedAttack(): AttackDefinition {
+    const a = this.nextAttack ?? this.chooseAttack() ?? getAttack(this.def.attacks[0]!.attack);
+    this.nextAttack = null;
+    return a;
+  }
+
+  rollRetreat(): boolean {
+    const r = this.def.retreat;
+    return r !== undefined && this.random() < r.chance;
   }
 
   // ---- RiposteTarget -----------------------------------------------------------------------
@@ -223,6 +281,13 @@ export class Sentinel implements Combatant, RiposteTarget {
     this.fsm.transition('postureBroken', true);
   }
 
+  /** Called by the dead state's enter. */
+  markDead(): void {
+    this.deaths++;
+    this.deathPending = true;
+    this.riposteOpen = false;
+  }
+
   respawn(): void {
     this.health.reset();
     this.posture.reset();
@@ -236,34 +301,45 @@ export class Sentinel implements Combatant, RiposteTarget {
   }
 }
 
-const idle: SentinelState = {
+// ---- Shared states ----------------------------------------------------------------------------
+
+const idle: EnemyState = {
   update(e, dt) {
     if (e.canSeeTarget(e.def.aggroRange)) return 'approach';
     e.body.vx = approach(e.body.vx, 0, 600 * dt);
   },
 };
 
-const approachState: SentinelState = {
+/** Close to the preferred distance, back off when crowded, attack when an option is in range. */
+const approachState: EnemyState = {
   update(e, dt) {
     if (!e.canSeeTarget(e.def.leashRange)) return 'idle';
     e.faceTarget();
     const distance = Math.abs(e.dxToTarget());
     // A guard-broken target is punished immediately.
-    if (e.target.isGuardBroken && distance <= e.def.attackRange * 1.4) e.cooldown = 0;
-    if (distance <= e.def.attackRange && e.cooldown <= 0) return 'attack';
-    const tooClose = distance < e.def.attackRange * 0.6;
-    const wantSpeed = tooClose || !e.hasGroundAhead() ? 0 : e.facing * e.def.walkSpeed;
-    e.body.vx = approach(e.body.vx, wantSpeed, 500 * dt);
+    if (e.target.isGuardBroken && distance <= e.maxReach * 1.4) e.cooldown = 0;
+    if (e.cooldown <= 0) {
+      const attack = e.chooseAttack(distance);
+      if (attack) {
+        e.startAttack(attack);
+        return;
+      }
+    }
+    const s = e.def.spacing;
+    let want = 0;
+    if (distance > s.preferred && e.hasGroundAhead()) want = e.facing * e.def.walkSpeed;
+    else if (distance < s.min && e.hasGroundToward(-e.facing)) want = -e.facing * e.def.walkSpeed * 0.7;
+    e.body.vx = approach(e.body.vx, want, 500 * dt);
   },
 };
 
-const attackState: SentinelState = {
+const attackState: EnemyState = {
   enter(e) {
     e.faceTarget();
-    e.currentAttack = e.chooseAttack();
+    e.currentAttack = e.takeQueuedAttack();
     e.wasParried = false;
     e.attack.start(e.currentAttack);
-    e.events.push({ type: 'telegraph', x: e.body.footX, y: e.body.y, facing: e.facing });
+    e.events.push({ type: 'telegraph', x: e.body.footX, y: e.body.y, facing: e.facing, attackId: e.currentAttack.id });
   },
   update(e, dt) {
     const r = e.attack;
@@ -271,7 +347,7 @@ const attackState: SentinelState = {
     const def = e.currentAttack;
     if (r.isDone) {
       e.cooldown = e.def.attackCooldown;
-      return 'approach';
+      return e.rollRetreat() ? 'retreat' : 'approach';
     }
     // A broken guard is punished: cut the recovery short and swing again at once.
     if (r.phase === 'recovery' && e.target.isGuardBroken) {
@@ -283,13 +359,25 @@ const attackState: SentinelState = {
     }
     if (r.frame === def.movement.lungeFrame && e.hasGroundAhead()) e.body.vx = e.facing * def.movement.lungeSpeed;
     else e.body.vx = approach(e.body.vx, 0, def.movement.friction * dt);
+    // Never lunge off a ledge.
+    if (!e.hasGroundAhead() && Math.sign(e.body.vx) === e.facing) e.body.vx = 0;
   },
   exit(e) {
     e.attack.clear();
   },
 };
 
-function reeling(frames: (e: Sentinel) => number): SentinelState {
+/** Hop back out of reach after attacking (Barrow Reaper). Vulnerable while hopping. */
+const retreat: EnemyState = {
+  update(e, dt) {
+    const r = e.def.retreat;
+    if (!r || e.fsm.ticks >= r.frames) return 'approach';
+    const dir = -e.facing;
+    e.body.vx = e.hasGroundToward(dir) ? dir * r.speed : approach(e.body.vx, 0, 900 * dt);
+  },
+};
+
+function reeling(frames: (e: Enemy) => number): EnemyState {
   return {
     update(e, dt) {
       if (e.fsm.ticks >= frames(e)) return 'approach';
@@ -303,14 +391,14 @@ function reeling(frames: (e: Sentinel) => number): SentinelState {
   };
 }
 
-const stagger: SentinelState = {
+const stagger: EnemyState = {
   update(e, dt) {
     if (e.fsm.ticks >= e.staggerFrames) return 'approach';
     e.body.vx = approach(e.body.vx, 0, 700 * dt);
   },
 };
 
-const postureBroken: SentinelState = {
+const postureBroken: EnemyState = {
   ...reeling((e) => e.def.reactions.postureBrokenFrames),
   exit(e) {
     e.riposteOpen = false;
@@ -318,9 +406,9 @@ const postureBroken: SentinelState = {
   },
 };
 
-const dead: SentinelState = {
+const dead: EnemyState = {
   enter(e) {
-    e.riposteOpen = false;
+    e.markDead();
     e.events.push({ type: 'death', faction: 'enemy', x: e.body.footX, y: e.body.footY });
   },
   update(e, dt) {
@@ -329,10 +417,11 @@ const dead: SentinelState = {
   },
 };
 
-const SENTINEL_STATES: Record<SentinelStateId, SentinelState> = {
+const ENEMY_STATES: Record<EnemyStateId, EnemyState> = {
   idle,
   approach: approachState,
   attack: attackState,
+  retreat,
   stagger,
   parried: reeling((e) => e.def.reactions.parriedFrames),
   postureBroken,

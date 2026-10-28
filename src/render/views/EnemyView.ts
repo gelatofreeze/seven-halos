@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import { lerp } from '../../core/math';
-import type { Sentinel } from '../../entities/enemy/Sentinel';
-import { frameAt, SENTINEL_FRAMES, SENTINEL_SHEET } from '../animation/specs';
+import type { Enemy } from '../../entities/enemy/Enemy';
+import { frameAt } from '../animation/specs';
 import { TEX } from '../textures/registerTextures';
+import { ENEMY_VISUALS, type EnemyVisualProfile } from './enemyProfiles';
 
-/** Renders a Hollow Sentinel, including its attack telegraph and health bar. */
-export class SentinelView {
+/** Renders any enemy from its visual profile: animation, attack telegraphs, health/posture bar, riposte marker. */
+export class EnemyView {
   readonly sprite: Phaser.GameObjects.Sprite;
+  private readonly profile: EnemyVisualProfile;
   private readonly eyeGlow: Phaser.GameObjects.Image;
   private readonly glint: Phaser.GameObjects.Image;
   private readonly bar: Phaser.GameObjects.Graphics;
@@ -17,10 +19,14 @@ export class SentinelView {
 
   constructor(
     scene: Phaser.Scene,
-    private readonly enemy: Sentinel,
+    private readonly enemy: Enemy,
   ) {
-    this.sprite = scene.add.sprite(0, 0, TEX.sentinel, 0).setOrigin(0.5, SENTINEL_SHEET.footY / SENTINEL_SHEET.frameHeight).setDepth(8);
-    this.eyeGlow = scene.add.image(0, 0, TEX.glow).setBlendMode(Phaser.BlendModes.ADD).setTint(0x7ff0ff).setScale(0.35).setDepth(8.5);
+    const profile = ENEMY_VISUALS[enemy.def.id];
+    if (!profile) throw new Error(`No visual profile for enemy ${enemy.def.id}`);
+    this.profile = profile;
+    const sheet = profile.sheet;
+    this.sprite = scene.add.sprite(0, 0, sheet.key, 0).setOrigin(0.5, sheet.footY / sheet.frameHeight).setDepth(8);
+    this.eyeGlow = scene.add.image(0, 0, TEX.glow).setBlendMode(Phaser.BlendModes.ADD).setTint(profile.eye.tint).setScale(0.35).setDepth(8.5);
     this.glint = scene.add.image(0, 0, TEX.glow).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setVisible(false).setDepth(11);
     this.bar = scene.add.graphics().setDepth(12);
     this.opening = scene.add.graphics().setDepth(12);
@@ -30,6 +36,7 @@ export class SentinelView {
   update(alpha: number, dt: number, playerInRange = false): void {
     this.time += dt;
     const e = this.enemy;
+    const pr = this.profile;
     const b = e.body;
     const x = lerp(b.prevX, b.x, alpha) + b.w / 2;
     const y = lerp(b.prevY, b.y, alpha) + b.h;
@@ -37,56 +44,68 @@ export class SentinelView {
     s.setPosition(x, y).setFlipX(e.facing < 0);
 
     let eyeIntensity = 0.5;
+    let eyeTint = pr.eye.tint;
     this.glint.setVisible(false);
+    const play = (name: string) => s.anims.play(`${pr.anim}.${name}`, true);
     switch (e.fsm.current) {
       case 'idle':
-        s.anims.play('sentinel.idle', true);
+        play('idle');
         break;
       case 'approach':
-        s.anims.play(Math.abs(b.vx) > 4 ? 'sentinel.walk' : 'sentinel.idle', true);
+        play(Math.abs(b.vx) > 4 ? 'walk' : 'idle');
+        break;
+      case 'retreat':
+        s.anims.stop();
+        play('retreat');
         break;
       case 'attack': {
         const r = e.attack;
+        const visual = pr.attacks[e.currentAttack.id];
         s.anims.stop();
+        if (!visual) break;
         if (r.phase === 'startup') {
-          s.setFrame(frameAt(SENTINEL_FRAMES.windup, r.phaseProgress));
+          s.setFrame(frameAt(visual.frames.startup, r.phaseProgress));
           eyeIntensity = 0.6 + r.phaseProgress * 1.4;
-          // Glint: a bright star flash in the last third of the windup.
-          if (r.phaseProgress > 0.62 && r.phaseProgress < 0.9) {
-            const t = (r.phaseProgress - 0.62) / 0.28;
+          eyeTint = visual.eyeTint;
+          // Glint: a bright star flash late in the wind-up, the reliable "now" cue.
+          const g = visual.glint;
+          if (r.phaseProgress > g.from && r.phaseProgress < g.to) {
+            const t = (r.phaseProgress - g.from) / (g.to - g.from);
             this.glint
               .setVisible(true)
-              .setPosition(x - e.facing * 28, y - 62)
+              .setTint(visual.eyeTint === pr.eye.tint ? 0xffffff : 0xffb0a0)
+              .setPosition(x + e.facing * g.x, y - g.y)
               .setScale(0.3 + Math.sin(t * Math.PI) * 0.9)
               .setAlpha(Math.sin(t * Math.PI));
           }
         } else if (r.phase === 'active') {
-          s.setFrame(frameAt(SENTINEL_FRAMES.strike, r.phaseProgress));
+          s.setFrame(frameAt(visual.frames.active, r.phaseProgress));
           eyeIntensity = 2;
+          eyeTint = visual.eyeTint;
         } else {
-          s.setFrame(frameAt(SENTINEL_FRAMES.recover, r.phaseProgress));
+          s.setFrame(frameAt(visual.frames.recovery, r.phaseProgress));
           eyeIntensity = 0.3;
         }
         break;
       }
       case 'stagger':
-        s.anims.play('sentinel.stagger', true);
+        play('stagger');
         eyeIntensity = 0.2;
         break;
       case 'parried':
-        s.anims.play(e.fsm.ticks < 10 ? 'sentinel.parried' : 'sentinel.broken', true);
+        play(e.fsm.ticks < 10 ? 'parried' : 'broken');
         eyeIntensity = 0.15;
         break;
       case 'postureBroken':
-        s.anims.play('sentinel.broken', true);
+        play('broken');
         eyeIntensity = 0.1;
         break;
       case 'riposted':
-        s.anims.play('sentinel.riposted', true);
+        play('riposted');
         eyeIntensity = 0;
         break;
       case 'dead':
-        s.anims.play('sentinel.dead', true);
+        play('dead');
         eyeIntensity = 0;
         break;
     }
@@ -94,9 +113,13 @@ export class SentinelView {
     if (e.hitFlash > 0) s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
     else if (e.fsm.is('postureBroken') && e.fsm.ticks < 8) s.setTint(0xffd27a).setTintMode(Phaser.TintModes.FILL);
     else s.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
-    s.setAlpha(e.isDead ? Math.max(0, 1 - e.fsm.time / 2.5) : 1);
+    s.setAlpha(e.isDead ? Math.max(0, 1 - e.fsm.time / pr.deathFade) : 1);
 
-    this.eyeGlow.setPosition(x + e.facing * 3, y - 34).setAlpha(Math.min(1, eyeIntensity * 0.6)).setScale(0.25 + eyeIntensity * 0.2);
+    this.eyeGlow
+      .setPosition(x + e.facing * pr.eye.x, y - pr.eye.y)
+      .setTint(eyeTint)
+      .setAlpha(Math.min(1, eyeIntensity * 0.6))
+      .setScale(0.25 + eyeIntensity * 0.2);
 
     // Health bar with a trailing "recent damage" segment.
     const ratio = e.health.ratio;
@@ -105,7 +128,7 @@ export class SentinelView {
     if (!e.isDead && (ratio < 1 || e.fsm.current !== 'idle')) {
       const w = 30;
       const bx = Math.round(x - w / 2);
-      const by = Math.round(y - 46);
+      const by = Math.round(y - pr.barY);
       this.bar.fillStyle(0x07060d, 0.85).fillRect(bx - 1, by - 1, w + 2, 4);
       this.bar.fillStyle(0xd9c7a0, 1).fillRect(bx, by, Math.round(w * this.shownHealth), 2);
       this.bar.fillStyle(0xa3263a, 1).fillRect(bx, by, Math.round(w * ratio), 2);
@@ -123,7 +146,7 @@ export class SentinelView {
     if (e.canBeRiposted()) {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 12);
       const ox = Math.round(x);
-      const oy = Math.round(y - 52 - pulse * 2);
+      const oy = Math.round(y - pr.barY - 6 - pulse * 2);
       const size = playerInRange ? 4 : 3;
       this.opening.fillStyle(playerInRange ? 0xfff3c4 : 0xc9a45c, playerInRange ? 0.95 : 0.6 + pulse * 0.3);
       this.opening.fillTriangle(ox, oy - size, ox + size, oy, ox, oy + size);

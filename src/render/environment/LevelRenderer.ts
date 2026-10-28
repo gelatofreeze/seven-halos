@@ -56,6 +56,9 @@ export class LevelRenderer {
             blendMode: Phaser.BlendModes.ADD,
           })
           .setDepth(-3);
+      } else if (prop.kind === 'altar') {
+        scene.add.image(prop.x, prop.y, TEX.altar).setOrigin(0.5, 1).setDepth(-4);
+        this.addLight(prop.x, prop.y - 12, 0x9fe8ff, 0.3, 1.8, 0.06);
       } else {
         scene.add.image(prop.x, prop.y, TEX.lore).setOrigin(0.5, 1).setDepth(-4);
         this.addLight(prop.x, prop.y - 8, 0x9fe8ff, 0.4, 1.2, 0.1);

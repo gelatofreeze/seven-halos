@@ -22,9 +22,3 @@ export function deriveCombatStats(attrs: Attributes): CombatStats {
   };
 }
 
-/** Separate currencies, per design: experience levels you up, gold buys, forge points upgrade weapons. */
-export interface Currencies {
-  experience: number;
-  gold: number;
-  forgePoints: number;
-}
