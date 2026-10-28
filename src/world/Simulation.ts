@@ -13,7 +13,12 @@ import { CollisionWorld } from '../physics/CollisionWorld';
 import { checkEquip, equipInto } from '../rpg/Loadout';
 import { PlayerProfile } from '../rpg/Profile';
 import { upgradeWeapon, type UpgradeResult } from '../rpg/WeaponUpgrades';
-import type { CheckpointObject, LevelData, WorldObject } from './Level';
+import { Conversation } from '../rpg/Dialogue';
+import { questEvent, startQuest, type QuestChange, type QuestEvent } from '../rpg/Quests';
+import type { Outcome } from '../data/dialogue';
+import { npcsIn } from '../data/npcs';
+import { QUESTS } from '../data/quests';
+import { FOCUS_PRIORITY, type CheckpointObject, type LevelData, type NpcObject, type WorldObject } from './Level';
 import { rollLoot } from './Loot';
 import { createPickup, PICKUP_ARM_TIME, stepPickup, type Pickup } from './Pickups';
 import { SimEventQueue, type TravelReason } from './SimEvents';
@@ -87,6 +92,8 @@ export class Simulation {
   pendingTravel: TravelRequest | null = null;
   /** The interactable the player is standing at (shrine, cache, door), or null. */
   focus: WorldObject | null = null;
+  /** This region's interactables: the level's objects plus the NPCs placed here (data/npcs.ts). */
+  readonly objects: WorldObject[];
   /** Doorways only work once the player has stepped out of every exit zone (no instant ping-pong). */
   private exitsArmed = false;
   private readonly session: WorldSession | null;
@@ -101,6 +108,13 @@ export class Simulation {
     this.profile = options.profile ?? new PlayerProfile();
     this.world = new CollisionWorld(level.solids, { x: 0, y: 0, w: level.widthPx, h: level.heightPx });
     this.combat = new CombatSystem(this.events);
+    this.objects = [...level.objects];
+    for (const npc of npcsIn(level.id)) {
+      const a = level.anchors[npc.anchor];
+      if (!a) continue;
+      const reach = npc.reach ?? { w: 36, h: 44 };
+      this.objects.push({ kind: 'npc', id: npc.id, name: npc.name, dialogue: npc.dialogue, visual: npc.visual, facing: npc.facing ?? a.facing, x: a.x, y: a.y, zone: { x: a.x - reach.w / 2, y: a.y - reach.h, w: reach.w, h: reach.h } });
+    }
     const arrival = options.arrival ?? level.playerSpawn;
     this.player = new Player(this.world, this.events, arrival.x, arrival.y);
     this.player.facing = options.arrival?.facing ?? 1;
@@ -171,12 +185,15 @@ export class Simulation {
     if (p.isDead) return;
     let best = Infinity;
     const b = p.body;
-    for (const o of this.level.objects) {
+    let bestPriority = -1;
+    for (const o of this.objects) {
       if (o.kind === 'exit' && !o.interact) continue;
       if (o.kind === 'cache' && this.profile.world.hasFlag(o.id)) continue;
       if (!rectsOverlap(b, o.zone)) continue;
+      const priority = FOCUS_PRIORITY[o.kind];
       const d = Math.abs(b.footX - o.x);
-      if (d < best) {
+      if (priority > bestPriority || (priority === bestPriority && d < best)) {
+        bestPriority = priority;
         best = d;
         this.focus = o;
       }
@@ -194,6 +211,7 @@ export class Simulation {
         world.respawn = { region: this.level.id, anchor: o.id };
         this.profile.touch();
         this.events.push({ type: 'checkpointActivated', id: o.id, name: o.name, x: o.x, y: o.y });
+        this.questEvent({ type: 'activateCheckpoint', checkpoint: o.id });
       }
       this.events.push({ type: 'shrine', id: o.id, name: o.name, firstTime });
     } else if (o.kind === 'cache') {
@@ -205,16 +223,56 @@ export class Simulation {
       this.profile.touch();
       this.events.push({ type: 'cacheOpened', id: o.id, x: o.x, y: o.y, items: r.items ?? [], gold: r.gold ?? 0, weaponXp: r.weaponXp ?? 0 });
       this.focus = null;
+    } else if (o.kind === 'npc') {
+      this.events.push({ type: 'talk', npc: o.id, dialogue: o.dialogue, name: o.name });
+    } else if (o.kind === 'lore') {
+      const firstTime = !this.profile.lore.has(o.id);
+      if (firstTime) {
+        this.profile.lore.add(o.id);
+        this.profile.touch();
+      }
+      this.events.push({ type: 'lore', id: o.id, firstTime });
     } else {
       this.requestTravelOut({ reason: 'exit', to: o.to });
     }
+  }
+
+  // ---- Quests and dialogue ----------------------------------------------------------------
+
+  /** Feed a world event to the quest engine and announce what changed. */
+  questEvent(event: QuestEvent): void {
+    this.announce(questEvent(this.profile, event));
+  }
+
+  announce(changes: readonly QuestChange[]): void {
+    for (const c of changes) this.events.push({ type: 'quest', change: c });
+  }
+
+  /**
+   * Begin a conversation with an NPC standing here. Dialogue outcomes are
+   * validated and applied by the simulation (never by the panel); finishing
+   * the conversation counts as having talked to them.
+   */
+  startConversation(npcId: string): Conversation | null {
+    const npc = this.objects.find((o): o is NpcObject => o.kind === 'npc' && o.id === npcId);
+    if (!npc) return null;
+    return new Conversation(npc.dialogue, this.profile, (o) => this.applyOutcome(o));
+  }
+
+  /** Called when a conversation reached its end (not when dismissed). */
+  finishConversation(npcId: string): void {
+    this.questEvent({ type: 'talk', npc: npcId });
+  }
+
+  private applyOutcome(o: Outcome): void {
+    if ('startQuest' in o && QUESTS[o.startQuest]) this.announce(startQuest(this.profile, o.startQuest));
   }
 
   private checkExits(): void {
     if (this.pendingTravel || this.player.isDead) return;
     const b = this.player.body;
     let inside: WorldObject | null = null;
-    for (const o of this.level.objects) {
+    for (const o of this.objects) {
       if (o.kind !== 'exit' || o.interact) continue;
       if (rectsOverlap(b, o.zone)) inside = o;
     }

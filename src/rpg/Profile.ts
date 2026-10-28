@@ -2,6 +2,7 @@ import { getItem } from '../data/items';
 import { Inventory, type ItemInstance } from '../inventory/Inventory';
 import { WorldProgress } from '../world/WorldProgress';
 import { Loadout } from './Loadout';
+import { QuestLog } from './Quests';
 import { Wallet } from './Wallet';
 
 export const STARTING_WEAPON = 'pilgrim-sword';
@@ -18,6 +19,10 @@ export class PlayerProfile {
   readonly loadout = new Loadout();
   /** Shrines, flags and where to resume (saved). */
   readonly world = new WorldProgress();
+  /** Quest progress (saved). */
+  readonly quests = new QuestLog();
+  /** Lore entries the player has read (saved; rereadable in the journal). */
+  readonly lore = new Set<string>();
   revision = 0;
 
   constructor() {
@@ -59,6 +64,8 @@ export class PlayerProfile {
     this.inventory.clear();
     this.loadout.clear();
     this.world.clear();
+    this.quests.clear();
+    this.lore.clear();
     this.ensureStarterWeapon();
     this.touch();
   }

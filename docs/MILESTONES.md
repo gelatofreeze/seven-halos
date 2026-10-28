@@ -68,7 +68,19 @@
 - [x] Real-movement traversal tests for every main route, the way back, the ravine, the optional climb and the gate
 - [ ] Hand playtest on iPhone
 
-### Next (2C.2 — First Adventure)
+### Update 2C.2a — The First Voice (done, pending device playtest)
+- [x] Sanctuary/forest support fixes: lintels set in the walls, sconces on the columns, a torch post, the bridge meeting its bridgeheads; prop-support regression test
+- [x] Data-driven NPCs with focus priority; the Oracle at her reserved anchor
+- [x] Data-driven dialogue (conditions, choices, validated outcomes) with a mobile-friendly panel
+- [x] Quest engine (ordered typed objectives, catch-up from existing progress, exactly-once completion); The First Omen → The Seven Halos (0/7)
+- [x] Readable lore (two inscriptions), journal in the pause menu
+- [x] Save v4 with v3 → v4 migration (visited regions reconstructed)
+- [ ] Hand playtest on iPhone
+
+### Next (2C.2b — First Adventure, continued)
+Hidden cave, more lore, the double-jump ring.
+
+### Earlier plan (2C.2 — First Adventure)
 The oracle and NPC dialogue, quests, a hidden cave, lore discovery and the double-jump ring. Then: spending Character XP (levelling) at a shrine, a blacksmith reusing the upgrade service, running and jumping attacks, a ranged enemy, player poise/armour, shields as equipment.
 
 ## Phase 3 — RPG layer

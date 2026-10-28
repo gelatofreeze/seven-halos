@@ -199,7 +199,7 @@ const REAL_V2 = {
   equipment: { mainHand: 5 },
 };
 
-describe('Save migration v2 → v3', () => {
+describe('Save migration v2 → v3 → v4', () => {
   it('keeps every item, tier, the backpack order, equipment and currencies, and starts at the sanctuary', () => {
     const raw = JSON.stringify(REAL_V2);
     const { profile, status, storage, save } = loadFrom(raw);
@@ -213,20 +213,21 @@ describe('Save migration v2 → v3', () => {
     expect(storage.load(migrationBackupKey(2))).toBe(raw);
     expect(save.migrationBackedUp).toBe(true);
     const stored = JSON.parse(storage.load(SAVE_KEY)!);
-    expect(stored.version).toBe(3);
-    expect(stored.world).toEqual({ location: null, respawn: null, checkpoints: [], flags: [] });
+    expect(stored.version).toBe(SAVE_VERSION);
+    expect(stored.world).toEqual({ location: null, respawn: null, checkpoints: [], flags: [], visited: [] });
+    expect([stored.quests, stored.lore]).toEqual([{}, []]);
     // Runs once.
     expect(new SaveManager(storage, new PlayerProfile()).load()).toBe('loaded');
   });
 
-  it('v1 saves still migrate all the way (v1 → v2 → v3), backing up the original v1', () => {
+  it('v1 saves still migrate all the way (v1 → v2 → v3 → v4), backing up the original v1', () => {
     const raw = JSON.stringify(REAL_V1);
     const { profile, status, storage } = loadFrom(raw);
     expect(status).toBe('migrated');
     expect(profile.wallet.weaponXp).toBe(270);
     expect(profile.equippedWeaponUid).toBe(5);
     expect(storage.load(migrationBackupKey(1))).toBe(raw);
-    expect(JSON.parse(storage.load(SAVE_KEY)!).version).toBe(3);
+    expect(JSON.parse(storage.load(SAVE_KEY)!).version).toBe(SAVE_VERSION);
   });
 
   it('the v2 → v3 step is pure and deterministic', () => {

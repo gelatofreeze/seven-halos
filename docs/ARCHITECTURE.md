@@ -55,6 +55,13 @@ WorldScene fades out, drops all input ──► GameWorld.completeTravel() ─�
 - `WorldScene` is the only gameplay scene. A restart tears down every per-region sprite, light, particle emitter, DOM panel and listener on SHUTDOWN. The HUD scene, toasts, input devices and the profile live for the whole session.
 - Shrines, caches and doors share one interaction model: the simulation keeps a single `focus` object (the nearest one the player stands at), and one `interact` press acts on it only from a neutral grounded state. Presentation shows a prompt and never decides anything.
 
+## Narrative loop
+```
+interact with NPC ──► SimEvent talk ──► DialoguePanel shows Conversation (rpg/Dialogue.ts, pure)
+choice outcome ──► Simulation.applyOutcome ──► startQuest (rpg/Quests.ts) ──► SimEvent quest ──► toast, save
+conversation end / shrine lit / region entered ──► questEvent ──► ordered objectives advance, complete once
+```
+
 ## RPG loop data flow
 ```
 Enemy dies ──► Enemy.markDead() (once) ──► Simulation.processDeaths()

@@ -19,6 +19,11 @@ import type { SimEvent } from '../world/SimEvents';
 import type { Simulation } from '../world/Simulation';
 import { InteractionPrompt } from '../ui/InteractionPrompt';
 import { ShrineMenu } from '../ui/ShrineMenu';
+import { DialoguePanel } from '../ui/DialoguePanel';
+import { LorePanel } from '../ui/LorePanel';
+import { getLore, questToast } from '../ui/journalModel';
+import { NpcViews } from '../render/views/NpcView';
+import type { NpcObject } from '../world/Level';
 import { cacheMessage, promptLabel } from '../ui/worldModel';
 import { findCheckpoint } from '../world/regions';
 import type { UIScene } from './UIScene';
@@ -52,6 +57,9 @@ export class WorldScene extends Phaser.Scene {
   private rpgHud!: RpgHud;
   private menu!: PauseMenu;
   private shrineMenu!: ShrineMenu;
+  private dialogue!: DialoguePanel;
+  private lorePanel!: LorePanel;
+  private npcViews!: NpcViews;
   private prompt!: InteractionPrompt;
   private saveTimer = 0;
   private backdrop!: Backdrop;
@@ -65,6 +73,8 @@ export class WorldScene extends Phaser.Scene {
   private paused = false;
   private menuOpen = false;
   private shrineOpen = false;
+  /** A conversation or a lore text is open (pauses like the menus). */
+  private readingOpen = false;
   /** Fading out to another region: nothing steps and no input is read. */
   private transitioning = false;
 
@@ -80,6 +90,7 @@ export class WorldScene extends Phaser.Scene {
     this.transitioning = false;
     this.menuOpen = false;
     this.shrineOpen = false;
+    this.readingOpen = false;
     this.paused = false;
     this.lookAhead = 0;
     this.timestep.reset();
@@ -105,11 +116,20 @@ export class WorldScene extends Phaser.Scene {
     const unsubscribeViewport = services.viewport?.onChange(() => requestAnimationFrame(placeHud));
     this.menu = new PauseMenu(app, this.sim, services.save, (open) => this.setMenuOpen(open));
     this.shrineMenu = new ShrineMenu(app, this.sim, (open) => this.setShrineOpen(open));
+    this.dialogue = new DialoguePanel(
+      app,
+      () => this.setReadingOpen(),
+      (npc) => this.sim.finishConversation(npc),
+    );
+    this.lorePanel = new LorePanel(app, () => this.setReadingOpen());
+    this.npcViews = new NpcViews(this, this.sim.objects.filter((o): o is NpcObject => o.kind === 'npc'), this.levelRenderer.rig);
     const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     this.prompt = new InteractionPrompt(app, () => services.input.tap('interact', 'prompt'), touch);
     services.onMenuToggle = () => {
       if (this.transitioning) return;
       if (this.shrineMenu.isOpen) this.shrineMenu.close();
+      else if (this.dialogue.isOpen) this.dialogue.close();
+      else if (this.lorePanel.isOpen) this.lorePanel.close();
       else this.menu.toggle();
     };
     this.announceArrival();
@@ -139,6 +159,8 @@ export class WorldScene extends Phaser.Scene {
       unsubscribeViewport?.();
       this.menu.destroy();
       this.shrineMenu.destroy();
+      this.dialogue.destroy();
+      this.lorePanel.destroy();
       this.prompt.destroy();
       this.rpgHud.destroy();
     });
@@ -192,6 +214,11 @@ export class WorldScene extends Phaser.Scene {
     this.isolateInput();
   }
 
+  private setReadingOpen(): void {
+    this.readingOpen = this.dialogue.isOpen || this.lorePanel.isOpen;
+    this.isolateInput();
+  }
+
   private setShrineOpen(open: boolean): void {
     this.shrineOpen = open;
     this.isolateInput();
@@ -215,7 +242,7 @@ export class WorldScene extends Phaser.Scene {
       services.save.saveIfChanged();
     }
     this.rpgHud.update();
-    const blocked = this.paused || this.menuOpen || this.shrineOpen || this.transitioning;
+    const blocked = this.paused || this.menuOpen || this.shrineOpen || this.readingOpen || this.transitioning;
     const label = blocked ? null : promptLabel(this.sim.focus, services.profile.world);
     this.prompt.set(label);
     if (label) {
@@ -247,6 +274,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateCamera(alpha, dt);
     this.backdrop.update(this.cameras.main, dt);
     this.levelRenderer.update(dt);
+    this.npcViews.update(dt);
     this.effects.update(dt);
     this.debug.update(dt);
   }
@@ -338,6 +366,24 @@ export class WorldScene extends Phaser.Scene {
         break;
       case 'shrine':
         this.shrineMenu.open(e.id, e.firstTime);
+        break;
+      case 'talk': {
+        const conversation = this.sim.startConversation(e.npc);
+        if (conversation) this.dialogue.open(e.npc, e.name, conversation);
+        break;
+      }
+      case 'lore': {
+        const entry = getLore(e.id);
+        this.lorePanel.open(entry);
+        if (e.firstTime) {
+          getServices(this).toasts.show(`New journal entry: ${entry.title}`, 'info', 3);
+          getServices(this).save.saveIfChanged();
+        }
+        break;
+      }
+      case 'quest':
+        getServices(this).toasts.show(questToast(e.change), e.change.type === 'advanced' ? 'info' : 'rare', 3.4);
+        getServices(this).save.saveIfChanged();
         break;
       case 'cacheOpened':
         sfx.play('rarePickup');

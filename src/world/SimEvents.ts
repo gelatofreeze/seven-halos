@@ -1,5 +1,6 @@
 import type { AttackKind, Faction } from '../combat/types';
 import type { Rarity } from '../data/items';
+import type { QuestChange } from '../rpg/Quests';
 
 /**
  * One-way notifications from the simulation to presentation (sound, particles,
@@ -36,6 +37,12 @@ export type SimEvent =
   /** The player used a shrine (after activating it): the scene opens the shrine menu. */
   | { type: 'shrine'; id: string; name: string; firstTime: boolean }
   | { type: 'cacheOpened'; id: string; x: number; y: number; items: readonly { item: string; quantity: number }[]; gold: number; weaponXp: number }
+  /** The player spoke to an NPC: the scene opens the dialogue panel. */
+  | { type: 'talk'; npc: string; dialogue: string; name: string }
+  /** The player read something: the scene opens the lore panel. */
+  | { type: 'lore'; id: string; firstTime: boolean }
+  /** A quest started, advanced or completed. */
+  | { type: 'quest'; change: QuestChange }
   /** The simulation asked to leave this region (doorway, death, rest or travel). */
   | { type: 'travel'; reason: TravelReason };
 

@@ -97,6 +97,9 @@ export class LevelRenderer {
       } else if (o.kind === 'cache') {
         const image = scene.add.image(o.x, o.y, TEX.cacheClosed).setOrigin(0.5, 1).setDepth(-3);
         this.caches.push({ id: o.id, image, light: this.rig.add('treasure', o.x, o.y - 8) });
+      } else if (o.kind === 'lore') {
+        scene.add.image(o.x, o.y, TEX.lore).setOrigin(0.5, 1).setDepth(-4);
+        this.rig.add('divine', o.x, o.y - 8);
       }
       // Exits are marked by the region's own decoration (waymarkers, arches), not a generic glow.
     }

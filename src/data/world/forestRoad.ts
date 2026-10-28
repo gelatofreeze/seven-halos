@@ -34,10 +34,13 @@ export const FOREST_ROAD: RegionDefinition = {
     f: { type: 'prop', prop: 'flowers' },
     o: { type: 'prop', prop: 'fallenColumn' },
     w: { type: 'prop', prop: 'waymarker' },
+    // A note at the sealed gate.
+    L: { type: 'lore', lore: 'lore.sealed-gate' },
   },
   decor: [
     // B: the old bridge under the crossing, and water far below.
-    { prop: 'bridgeRuin', at: { col: 40, row: 22 }, layer: 'back' },
+    // Its top meets the bridgeheads' floor line (y 304); its feet go down behind the ravine floor.
+    { prop: 'bridgeRuin', at: { col: 40, row: 22 }, dy: 20, layer: 'back' },
     { prop: 'stream', at: { col: 40, row: 22 } },
     // C: the ancient tree, centred under its branches; a shaft of moonlight on the cache.
     { prop: 'ancientTree', at: { col: 56, row: 18 }, layer: 'back' },
@@ -49,7 +52,8 @@ export const FOREST_ROAD: RegionDefinition = {
     { prop: 'shrineArch', at: 'forest.shrine' },
     { prop: 'brazier', at: 'forest.shrine', dx: 48, mirror: true },
     { prop: 'flowers', at: 'forest.shrine', dx: 80, mirror: true },
-    { prop: 'torch', at: { col: 129, row: 14 }, dy: -20 },
+    // A torch post on the top step lights the way to the gate.
+    { prop: 'torchPost', at: { col: 130, row: 14 } },
   ],
   rows: [
     '#...........................................................................................................................................',

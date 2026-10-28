@@ -3,12 +3,14 @@ import { SLOT_IDS, type SlotId } from '../data/equipmentSlots';
 import { ITEMS } from '../data/items';
 import { getWeapon } from '../data/weapons';
 import { fitsSlot } from '../rpg/Loadout';
-import { findCheckpoint, isValidLocation, persistentObjectIds, type WorldLocation } from '../world/regions';
+import { LORE } from '../data/lore';
+import { QUESTS } from '../data/quests';
+import { findCheckpoint, getRegionDef, hasRegion, isValidLocation, persistentObjectIds, type WorldLocation } from '../world/regions';
 import type { ItemInstance } from '../inventory/Inventory';
 import type { PlayerProfile } from '../rpg/Profile';
 import type { StorageAdapter } from './Storage';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const SAVE_KEY = 'seven-halos.save';
 /** Unreadable saves are moved here instead of being silently destroyed. */
 export const CORRUPT_BACKUP_KEY = 'seven-halos.save.corrupt';
@@ -44,6 +46,8 @@ export interface SavedWorld {
   respawn: WorldLocation | null;
   checkpoints: string[];
   flags: string[];
+  /** Regions visited (v4). */
+  visited?: string[];
 }
 
 /**
@@ -56,9 +60,28 @@ export interface SaveDataV3 extends Omit<SaveDataV2, 'version'> {
   world: SavedWorld;
 }
 
+/** One quest's saved progress (v4). */
+export interface SavedQuest {
+  status: 'active' | 'completed';
+  objective: number;
+  progress: number;
+}
+
+/**
+ * Save format v4: v3 plus the narrative state, `quests` (by stable quest id)
+ * and `lore` (ids of entries read), and `world.visited`. Dialogue keeps no
+ * state of its own: what an NPC says follows from these.
+ */
+export interface SaveDataV4 extends Omit<SaveDataV3, 'version' | 'world'> {
+  version: 4;
+  world: Required<SavedWorld>;
+  quests: Record<string, SavedQuest>;
+  lore: string[];
+}
+
 export type LoadStatus = 'new' | 'loaded' | 'migrated' | 'corrupt' | 'unsupported-version';
 
-export function serializeProfile(profile: PlayerProfile, now = new Date()): SaveDataV3 {
+export function serializeProfile(profile: PlayerProfile, now = new Date()): SaveDataV4 {
   const w = profile.wallet;
   const w2 = profile.world;
   const equipment: Partial<Record<SlotId, number>> = {};
@@ -74,7 +97,10 @@ export function serializeProfile(profile: PlayerProfile, now = new Date()): Save
       respawn: w2.respawn ? { ...w2.respawn } : null,
       checkpoints: [...w2.checkpoints],
       flags: [...w2.flags],
+      visited: [...w2.visited],
     },
+    quests: Object.fromEntries(profile.quests.entries().map(([id, q]) => [id, { ...q }])),
+    lore: [...profile.lore],
   };
 }
 
@@ -115,6 +141,22 @@ export const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Recor
     version: 3,
     world: { location: null, respawn: null, checkpoints: [], flags: [] },
   }),
+  /**
+   * v3 → v4: adds quests (none started), lore read (none) and visited
+   * regions. Visited is reconstructed from what v3 already proves: the
+   * regions of every lit shrine and of the saved location. So a player who
+   * lit the forest shrine before 2C.2a gets credit for it in the first quest.
+   */
+  3: (v3) => {
+    const world = isRecord(v3.world) ? { ...v3.world } : {};
+    const visited = new Set<string>();
+    if (Array.isArray(world.checkpoints)) for (const id of world.checkpoints) if (typeof id === 'string') {
+      const c = findCheckpoint(id);
+      if (c) visited.add(c.region);
+    }
+    if (isRecord(world.location) && typeof world.location.region === 'string') visited.add(world.location.region);
+    return { ...v3, version: 4, world: { ...world, visited: [...visited] }, quests: {}, lore: [] };
+  },
 };
 
 /**
@@ -167,6 +209,7 @@ export function applySave(raw: string | null, profile: PlayerProfile): LoadStatu
   }
   profile.ensureStarterWeapon();
   applyWorld(isRecord(record.world) ? record.world : {}, profile);
+  applyNarrative(record, profile);
   return fromVersion < SAVE_VERSION ? 'migrated' : 'loaded';
 }
 
@@ -187,6 +230,24 @@ function applyWorld(world: Record<string, unknown>, profile: PlayerProfile): voi
   const respawn = asLocation(world.respawn);
   // Respawning is only ever at an activated shrine.
   w.respawn = respawn && w.checkpoints.has(respawn.anchor) && findCheckpoint(respawn.anchor)?.region === respawn.region ? respawn : null;
+  if (Array.isArray(world.visited)) for (const id of world.visited) if (typeof id === 'string' && hasRegion(id) && !getRegionDef(id).dev) w.visited.add(id);
+}
+
+/** Quests and lore: unknown ids are dropped; objective indices and progress are clamped to the quest's data. */
+function applyNarrative(record: Record<string, unknown>, profile: PlayerProfile): void {
+  profile.quests.clear();
+  profile.lore.clear();
+  const quests = isRecord(record.quests) ? record.quests : {};
+  for (const [id, raw] of Object.entries(quests)) {
+    const def = QUESTS[id];
+    if (!def || !isRecord(raw) || (raw.status !== 'active' && raw.status !== 'completed')) continue;
+    const n = def.objectives.length;
+    const objective = raw.status === 'completed' ? n : Math.min(n - 1, wholeNumber(raw.objective));
+    const o = def.objectives[objective];
+    const progress = o && o.type === 'collect' ? Math.min(o.count - 1, wholeNumber(raw.progress)) : 0;
+    profile.quests.set(id, { status: raw.status, objective, progress });
+  }
+  if (Array.isArray(record.lore)) for (const id of record.lore) if (typeof id === 'string' && LORE[id]) profile.lore.add(id);
 }
 
 /**

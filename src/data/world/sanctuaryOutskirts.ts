@@ -34,6 +34,8 @@ export const SANCTUARY_OUTSKIRTS: RegionDefinition = {
     b: { type: 'prop', prop: 'bush' },
     u: { type: 'prop', prop: 'ruin' },
     w: { type: 'prop', prop: 'waymarker' },
+    // The carved stone by the road out: the first readable lore.
+    L: { type: 'lore', lore: 'lore.waystone' },
   },
   decor: [
     // The hall, back to front, all on the shrine's axis. Bottom = the hall floor (y 176).
@@ -44,11 +46,13 @@ export const SANCTUARY_OUTSKIRTS: RegionDefinition = {
     // Exterior: the pediment on the roof (roof top y 48) with the Halo in its oculus.
     { prop: 'gable', at: 'sanctuary.shrine', dy: -128 },
     { prop: 'halo', at: 'sanctuary.shrine', dy: -130 },
-    // Mirrored pairs: braziers beside the shrine, plinths on the galleries, torches by the doors, door frames.
+    // Mirrored pairs: braziers beside the shrine, plinths on the galleries.
     { prop: 'brazier', at: 'sanctuary.shrine', dx: 64, mirror: true },
     { prop: 'plinth', at: 'sanctuary.shrine', dx: 160, dy: -48, mirror: true },
-    { prop: 'torch', at: 'sanctuary.shrine', dx: 226, dy: -36, mirror: true },
-    { prop: 'doorArch', at: 'sanctuary.shrine', dx: 264, mirror: true },
+    // Sconces fixed to the outermost arcade columns (column centres at ±238).
+    { prop: 'torch', at: 'sanctuary.shrine', dx: 238, dy: -48, mirror: true },
+    // Lintels over the two doorways: set into the 2-tile walls (centres ±264), bottom on the opening's top (32 px up).
+    { prop: 'doorArch', at: 'sanctuary.shrine', dx: 264, dy: -32, mirror: true },
     { prop: 'flowers', at: 'sanctuary.shrine', dx: 120, mirror: true },
     // The approach and the road out: flowers and a fallen column on the way in.
     { prop: 'flowers', at: { col: 11, row: 12 } },
