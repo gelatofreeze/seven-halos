@@ -784,11 +784,13 @@ body {
 .interact-prompt {
   position: fixed;
   z-index: 30;
+  /* Positioned above the player's head by the scene (InteractionPrompt.place). */
   left: 50%;
-  top: calc(env(safe-area-inset-top, 0px) + 22%);
-  transform: translate(-50%, -50%);
+  top: 40%;
+  transform: translate(-50%, -100%);
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid #ffd27a;

@@ -60,6 +60,14 @@
 - [x] Test chamber kept as a development-only region; Sentinel shown as "Vowcarved Sentinel"
 - [ ] Hand playtest on iPhone
 
+### Update 2C.1a — World composition (done, pending device playtest)
+- [x] Sanctuary hall rebuilt on one axis: shrine, central arch, light shaft, gable halo, mirrored walls/galleries/doors/braziers (tested)
+- [x] Layered hall art (back wall, arcade, ivy, door frames), anchor-relative `decor` placements, tile materials (`%`, `-`)
+- [x] Reusable lighting presets: animated flames, embers, light spill, flicker/pulse, dusty light shafts, fireflies
+- [x] Forest Road recomposed in five beats with earth ground, tree-line backdrop and a distant castle landmark
+- [x] Real-movement traversal tests for every main route, the way back, the ravine, the optional climb and the gate
+- [ ] Hand playtest on iPhone
+
 ### Next (2C.2 — First Adventure)
 The oracle and NPC dialogue, quests, a hidden cave, lore discovery and the double-jump ring. Then: spending Character XP (levelling) at a shrine, a blacksmith reusing the upgrade service, running and jumping attacks, a ranged enemy, player poise/armour, shields as equipment.
 

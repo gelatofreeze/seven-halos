@@ -6,7 +6,7 @@ import { TEX } from '../textures/registerTextures';
 const TINTS: Record<NonNullable<EnvironmentConfig['backdrop']>, readonly [number, number, number, number]> = {
   ruins: [0xffffff, 0xffffff, 0xffffff, 0xffffff],
   // Forest: green-gold canopy light instead of cold violet.
-  forest: [0xa8c8b0, 0x7fa886, 0x6f9a6c, 0xb8e0b0],
+  forest: [0xb0c8c0, 0xffffff, 0xffffff, 0xb8e0b0],
   // Sanctuary: a warmer dusk.
   sanctuary: [0xffd6c4, 0xe0c4cc, 0xd8c0c0, 0xffe4c8],
 };
@@ -29,6 +29,7 @@ export class Backdrop {
   private readonly sky: Phaser.GameObjects.TileSprite;
   private readonly moon: Phaser.GameObjects.Image;
   private drift = 0;
+  private readonly landmark: { image: Phaser.GameObjects.Image; x: number } | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -38,9 +39,16 @@ export class Backdrop {
   ) {
     this.sky = scene.add.tileSprite(0, 0, 16, 16, TEX.sky).setOrigin(0, 0).setScrollFactor(0).setDepth(-100);
     this.moon = scene.add.image(0, 0, TEX.moon).setScrollFactor(0).setDepth(-99);
-    this.addLayer(TEX.far, 0.08, 0.05, -70, 0, -90);
-    this.addLayer(TEX.mid, 0.3, 0.2, -40, 0, -80);
+    // Forests swap the ruined skyline for tree lines; everything else is shared.
+    const forest = environment.backdrop === 'forest';
+    this.addLayer(forest ? TEX.forestFar : TEX.far, 0.08, 0.05, -70, 0, -90);
+    this.addLayer(forest ? TEX.forestMid : TEX.mid, 0.3, 0.2, -40, 0, -80);
     this.addLayer(TEX.fog, 0.55, 0.4, -30, 6, -70).sprite.setAlpha(0.8);
+    if (environment.landmark) {
+      // Between the sky and the far tree line, so the tree line hides its base.
+      const image = scene.add.image(0, 0, TEX.castle).setOrigin(0.5, 1).setScrollFactor(0).setDepth(-95).setScale(0.6);
+      this.landmark = { image, x: environment.landmark.x };
+    }
     const tint = TINTS[environment.backdrop ?? 'ruins'];
     this.sky.setTint(tint[0]);
     this.layers.forEach((l, i) => l.sprite.setTint(tint[i + 1]!));
@@ -68,10 +76,20 @@ export class Backdrop {
     const sy = camera.scrollY;
     // The sky barely moves: it reads as infinitely distant.
     this.sky.tilePositionX = Math.round(sx * 0.02);
+    if (this.landmark) {
+      const far = this.layers[0]!;
+      const w = this.scene.scale.width;
+      // Centred on screen when the camera is centred on the landmark; moves at the far layer's rate.
+      this.landmark.image.x = Math.round(w / 2 + (this.landmark.x - (sx + w / 2)) * far.factorX * 2);
+      this.landmark.image.y = far.sprite.y - 70;
+    }
     for (const l of this.layers) {
       l.sprite.tilePositionX = Math.round(sx * l.factorX + this.drift * l.driftSpeed);
-      // A layer at world line Y with vertical factor f appears at Y - scrollY * f.
-      l.sprite.y = Math.round(this.horizonY - l.baseOffset - sy * l.factorY);
+      // Relative to the scroll at which the floor line sits ~60% down the screen, a
+      // layer with vertical factor f moves f times as fast as the world. Works
+      // for any level height (the floor line, not the level top, is the reference).
+      const ref = this.horizonY - this.scene.scale.height * 0.6;
+      l.sprite.y = Math.round(this.horizonY - l.baseOffset - ref - (sy - ref) * l.factorY);
     }
   }
 }

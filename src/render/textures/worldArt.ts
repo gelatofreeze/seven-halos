@@ -91,58 +91,6 @@ export function buildPlinth(): HTMLCanvasElement {
   return canvas;
 }
 
-/**
- * The sanctuary hall's back wall, 544 x 128: tall arched windows full of warm
- * light, columns, and ivy taking the stone back. Drawn behind the playfield.
- */
-export function buildSanctuaryFacade(): HTMLCanvasElement {
-  const w = 544;
-  const h = 128;
-  const { canvas, ctx } = createCanvas(w, h);
-  const rand = seeded(41);
-  ctx.fillStyle = '#252235';
-  ctx.fillRect(0, 0, w, h);
-  // Arched windows with warm light.
-  for (let i = 0; i < 7; i++) {
-    const x = 30 + i * 74;
-    const g = ctx.createLinearGradient(0, 18, 0, 110);
-    g.addColorStop(0, '#ffe7b0');
-    g.addColorStop(1, '#c8774a');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(x, 110);
-    ctx.lineTo(x, 40);
-    ctx.arc(x + 14, 40, 14, Math.PI, 0);
-    ctx.lineTo(x + 28, 110);
-    ctx.fill();
-    ctx.fillStyle = '#3a3550';
-    ctx.fillRect(x + 13, 26, 2, 84);
-    ctx.fillRect(x, 70, 28, 2);
-  }
-  // Columns.
-  for (let i = 0; i < 8; i++) {
-    const x = 8 + i * 74;
-    ctx.fillStyle = C.stoneLight;
-    ctx.fillRect(x, 0, 14, h);
-    ctx.fillStyle = C.stoneHighlight;
-    ctx.fillRect(x, 0, 3, h);
-    ctx.fillStyle = C.stoneDark;
-    ctx.fillRect(x - 3, h - 8, 20, 8);
-  }
-  // Ivy and flowers.
-  for (let i = 0; i < 160; i++) {
-    const x = Math.floor(rand() * w);
-    const y = Math.floor(rand() * rand() * h);
-    ctx.fillStyle = LEAF[Math.floor(rand() * LEAF.length)]!;
-    ctx.fillRect(x, y, 2 + Math.floor(rand() * 3), 2 + Math.floor(rand() * 4));
-  }
-  for (let i = 0; i < 30; i++) {
-    ctx.fillStyle = FLOWERS[i % FLOWERS.length]!;
-    ctx.fillRect(Math.floor(rand() * w), Math.floor(rand() * 40), 1, 1);
-  }
-  return canvas;
-}
-
 /** The sealed gate at the end of the forest road, 40 x 72. */
 export function buildGate(): HTMLCanvasElement {
   const { canvas, ctx } = createCanvas(40, 72);

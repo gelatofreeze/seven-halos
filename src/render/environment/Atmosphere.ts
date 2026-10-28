@@ -28,6 +28,25 @@ export class Atmosphere {
         blendMode: Phaser.BlendModes.ADD,
       })
       .setDepth(6);
+    const fireflies = level.environment.fireflies ?? 0;
+    if (fireflies > 0) {
+      // Slow, blinking points low over the ground: life in the forest, never in the way.
+      scene.add
+        .particles(0, 0, TEX.mote, {
+          x: { min: 0, max: level.widthPx },
+          y: { min: level.heightPx * 0.45, max: level.heightPx - 72 },
+          lifespan: { min: 3000, max: 6000 },
+          speedX: { min: -8, max: 8 },
+          speedY: { min: -6, max: 6 },
+          frequency: 400 / fireflies,
+          maxAliveParticles: Math.round(24 * fireflies),
+          scale: 2,
+          tint: [0xd8ff8a, 0xfff2a8],
+          alpha: { onUpdate: (_p, _k, t) => Math.max(0, Math.sin(t * Math.PI * 3)) * 0.9, onEmit: () => 0 },
+          blendMode: Phaser.BlendModes.ADD,
+        })
+        .setDepth(6);
+    }
     this.resize();
   }
 

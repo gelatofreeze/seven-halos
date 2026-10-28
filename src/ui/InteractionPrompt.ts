@@ -32,6 +32,20 @@ export class InteractionPrompt {
     parent.appendChild(this.root);
   }
 
+  private placed = '';
+
+  /**
+   * Float the prompt above the player's head (CSS px), so it never covers the
+   * object it's about (a shrine is usually right behind the player).
+   */
+  place(x: number, y: number): void {
+    const key = `${Math.round(x)},${Math.round(y)}`;
+    if (key === this.placed) return;
+    this.placed = key;
+    this.root.style.left = `${Math.round(x)}px`;
+    this.root.style.top = `${Math.round(y)}px`;
+  }
+
   /** Called every frame; only touches the DOM when the label changes. */
   set(label: string | null): void {
     if (label === this.shown) return;

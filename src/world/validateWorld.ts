@@ -32,6 +32,7 @@ export function validateWorld(regions: readonly RegionDefinition[] = REGIONS, st
     const where = `region "${id}"`;
     for (const ch of level.unknownMarkers) err(`${where}: unknown marker "${ch}"`);
     for (const dup of level.duplicateIds) err(`${where}: id "${dup}" is placed more than once`);
+    for (const d of level.unresolvedDecor) err(`${where}: decoration "${d}" is placed relative to nothing`);
     for (const a of Object.values(level.anchors)) {
       if (!ID_PATTERN.test(a.id)) err(`${where}: anchor id "${a.id}" is not a valid stable id`);
       if (!standable(level, Math.floor(a.x / level.tileSize), a.y / level.tileSize - 1)) err(`${where}: anchor "${a.id}" is not standing on open ground`);

@@ -1,11 +1,13 @@
 import { createCanvas, quantizeAlpha, seeded } from './canvas';
 import { PALETTE as C } from './palette';
 
-/** Tileset frame indices (16 x 16 each, laid out horizontally). */
-export const TILESET = { top: 0, innerA: 1, innerB: 2, wall: 3, oneWay: 4, count: 5 } as const;
+/** Tileset frame indices (16 x 16 each, laid out horizontally); one set of five per ground material. */
+export const TILESET = { top: 0, innerA: 1, innerB: 2, wall: 3, oneWay: 4, slab: 5, count: 6 } as const;
+/** First frame of each ground material's set. */
+export const GROUND_OFFSET = { stone: 0, earth: TILESET.count } as const;
 
 export function buildTileset(ts: number): HTMLCanvasElement {
-  const { canvas, ctx } = createCanvas(ts * TILESET.count, ts);
+  const { canvas, ctx } = createCanvas(ts * TILESET.count * 2, ts);
   const rand = seeded(7);
   const bricks = (ox: number, shade: string) => {
     ctx.fillStyle = C.stone;
@@ -56,7 +58,67 @@ export function buildTileset(ts: number): HTMLCanvasElement {
   ctx.fillStyle = C.stoneDark;
   ctx.fillRect(ox, 5, ts, 1);
   ctx.fillRect(ox + 7, 6, 2, 3);
+  // Masonry one-way slab (`-`): a dressed stone ledge with moss.
+  const sx = TILESET.slab * ts;
+  ctx.fillStyle = C.stoneLight;
+  ctx.fillRect(sx, 0, ts, 6);
+  ctx.fillStyle = C.stoneHighlight;
+  ctx.fillRect(sx, 0, ts, 1);
+  ctx.fillStyle = C.stoneDark;
+  ctx.fillRect(sx, 6, ts, 1);
+  ctx.fillRect(sx + 7, 1, 1, 5);
+  ctx.fillStyle = C.moss;
+  ctx.fillRect(sx + 2, 0, 4, 1);
+  ctx.fillRect(sx + 10, 6, 3, 2);
+  drawEarth(ctx, ts, GROUND_OFFSET.earth * ts, rand);
   return canvas;
+}
+
+/** Forest ground: grass over dark soil with stones and roots; one-way tiles are branches. */
+function drawEarth(ctx: CanvasRenderingContext2D, ts: number, base: number, rand: () => number): void {
+  const SOIL = '#2a2019';
+  const SOIL_DARK = '#1c1511';
+  const SOIL_LIGHT = '#3d2e22';
+  const GRASS = '#3f7049';
+  const GRASS_LIGHT = '#6f9e5e';
+  const soil = (ox: number) => {
+    ctx.fillStyle = SOIL;
+    ctx.fillRect(ox, 0, ts, ts);
+    for (let i = 0; i < 10; i++) {
+      ctx.fillStyle = rand() > 0.5 ? SOIL_LIGHT : SOIL_DARK;
+      ctx.fillRect(ox + Math.floor(rand() * ts), Math.floor(rand() * ts), 2, 1);
+    }
+  };
+  const top = base + TILESET.top * ts;
+  soil(top);
+  ctx.fillStyle = GRASS;
+  ctx.fillRect(top, 0, ts, 3);
+  for (let x = 0; x < ts; x++) if (rand() > 0.4) ctx.fillRect(top + x, 3, 1, 1 + Math.floor(rand() * 3));
+  ctx.fillStyle = GRASS_LIGHT;
+  for (let x = 0; x < ts; x += 2) if (rand() > 0.5) ctx.fillRect(top + x, 0, 1, 1);
+  soil(base + TILESET.innerA * ts);
+  soil(base + TILESET.innerB * ts);
+  // A buried stone and a root.
+  ctx.fillStyle = C.stone;
+  ctx.fillRect(base + TILESET.innerB * ts + 4, 6, 6, 4);
+  ctx.fillStyle = '#4a3528';
+  ctx.fillRect(base + TILESET.innerA * ts + 2, 10, 9, 1);
+  const wall = base + TILESET.wall * ts;
+  soil(wall);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(wall, 0, ts, ts);
+  ctx.fillStyle = GRASS;
+  ctx.fillRect(wall, 0, 1, ts);
+  // Branch: bark with a lighter top and a leaf.
+  const br = base + TILESET.oneWay * ts;
+  ctx.fillStyle = '#3a2c26';
+  ctx.fillRect(br, 1, ts, 5);
+  ctx.fillStyle = '#5a453a';
+  ctx.fillRect(br, 1, ts, 1);
+  ctx.fillStyle = GRASS_LIGHT;
+  ctx.fillRect(br + 5, 0, 3, 1);
+  ctx.fillStyle = GRASS;
+  ctx.fillRect(br + 11, 6, 2, 2);
 }
 
 /** Vertical gradient sky with stars. Tiles horizontally. */
@@ -348,5 +410,43 @@ export function buildMaterialIcon(): HTMLCanvasElement {
   ctx.fillRect(3, 1, 2, 1);
   ctx.fillStyle = '#c9c1ae';
   ctx.fillRect(2, 4, 2, 1);
+  return canvas;
+}
+
+/**
+ * Forest tree line for the parallax backdrop: rounded canopies on thin trunks
+ * over a dark undergrowth band, tiling horizontally. `tone` picks the colours
+ * (far = misty blue-green, near = deeper green with a moonlit rim).
+ */
+export function buildTreeLine(w: number, h: number, tone: 'far' | 'near'): HTMLCanvasElement {
+  const { canvas, ctx } = createCanvas(w, h);
+  const rand = seeded(tone === 'far' ? 71 : 83);
+  const body = tone === 'far' ? '#22324a' : '#1a2a28';
+  const rim = tone === 'far' ? '#2e4460' : '#2c4a3c';
+  ctx.fillStyle = body;
+  ctx.fillRect(0, h - 22, w, 22);
+  const count = tone === 'far' ? 14 : 9;
+  for (let i = 0; i < count; i++) {
+    const tx = Math.floor((i / count) * w + rand() * 20);
+    const r = (tone === 'far' ? 16 : 24) + rand() * 14;
+    const top = h - 40 - rand() * (h - 90);
+    wrapped(w, (dx) => {
+      const x = tx + dx;
+      ctx.fillStyle = body;
+      ctx.fillRect(x - 2, top, 4, h - top);
+      for (let k = 0; k < 5; k++) {
+        ctx.beginPath();
+        ctx.arc(x + (k - 2) * r * 0.45, top + Math.abs(k - 2) * r * 0.25, r * (0.75 - Math.abs(k - 2) * 0.08), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = rim;
+      ctx.beginPath();
+      ctx.arc(x - r * 0.3, top - r * 0.35, r * 0.35, Math.PI, 1.8 * Math.PI);
+      ctx.lineTo(x - r * 0.3, top - r * 0.35);
+      ctx.fill();
+      ctx.fillStyle = body;
+    });
+  }
+  quantizeAlpha(ctx, w, h, 80);
   return canvas;
 }
