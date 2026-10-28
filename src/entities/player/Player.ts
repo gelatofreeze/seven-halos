@@ -86,6 +86,19 @@ export class Player implements Combatant {
     this.fsm = new StateMachine<Player, PlayerStateId>(this, PLAYER_STATES, 'idle');
   }
 
+  /** Re-derive combat stats from attributes and the equipped weapon's upgrade level. */
+  refreshStats(): void {
+    const stats = deriveCombatStats(this.attributes);
+    stats.attackMultiplier *= this.equipment.damageMultiplier();
+    this.stats = stats;
+  }
+
+  /** Equipment may only change in neutral states, never mid-action. */
+  canChangeEquipment(): boolean {
+    const s = this.fsm.current;
+    return s === 'idle' || s === 'run' || s === 'land' || s === 'jump' || s === 'fall';
+  }
+
   get state(): PlayerStateId {
     return this.fsm.current;
   }

@@ -303,3 +303,50 @@ export function buildLoreStone(): HTMLCanvasElement {
   ctx.fillRect(5, 10, 2, 2);
   return canvas;
 }
+
+/** Armoury altar, 24 x 20: a low stone plinth that displays test equipment in development builds. */
+export function buildAltar(): HTMLCanvasElement {
+  const { canvas, ctx } = createCanvas(24, 20);
+  ctx.fillStyle = C.stoneDark;
+  ctx.fillRect(1, 14, 22, 6);
+  ctx.fillStyle = C.stone;
+  ctx.fillRect(4, 8, 16, 7);
+  ctx.fillStyle = C.stoneLight;
+  ctx.fillRect(2, 6, 20, 3);
+  ctx.fillRect(1, 14, 22, 1);
+  ctx.fillStyle = C.spectral;
+  ctx.fillRect(10, 10, 4, 1);
+  ctx.fillRect(11, 12, 2, 1);
+  return canvas;
+}
+
+/** Item icon for weapons lying in the world: a small crescent blade on a haft. 14 x 14. */
+export function buildWeaponIcon(): HTMLCanvasElement {
+  const { canvas, ctx } = createCanvas(14, 14);
+  ctx.strokeStyle = C.wood;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(2, 13);
+  ctx.lineTo(10, 3);
+  ctx.stroke();
+  ctx.strokeStyle = '#dfe8ee';
+  ctx.beginPath();
+  ctx.moveTo(10, 3);
+  ctx.quadraticCurveTo(4, 0, 1, 5);
+  ctx.stroke();
+  quantizeAlpha(ctx, 14, 14);
+  return canvas;
+}
+
+/** Item icon for materials: a small tied pouch of grey dust. 8 x 8. */
+export function buildMaterialIcon(): HTMLCanvasElement {
+  const { canvas, ctx } = createCanvas(8, 8);
+  ctx.fillStyle = '#8f8778';
+  ctx.fillRect(1, 3, 6, 5);
+  ctx.fillRect(2, 2, 4, 1);
+  ctx.fillStyle = '#5f584c';
+  ctx.fillRect(3, 1, 2, 1);
+  ctx.fillStyle = '#c9c1ae';
+  ctx.fillRect(2, 4, 2, 1);
+  return canvas;
+}

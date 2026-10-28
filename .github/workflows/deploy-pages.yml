@@ -1,4 +1,5 @@
-# Publishes the production build to GitHub Pages so the game can be played on a phone.
+# Publishes a test build (with development tools) to GitHub Pages so the game can be played on a phone.
+# Commercial builds use plain `npm run build`, which compiles the development tools out.
 # One-time setup: repository Settings → Pages → Build and deployment → Source: "GitHub Actions".
 name: Deploy to GitHub Pages
 
@@ -26,7 +27,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Full checks, including the guarantee that a commercial build has no dev tools...
       - run: npm run check
+      # ...then the Pages preview is rebuilt as a *test* build with dev tools enabled.
+      - run: npm run build:test
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

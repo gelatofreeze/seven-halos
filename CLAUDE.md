@@ -21,6 +21,14 @@ One Creator; seven gods, each with a Halo; sibling love → betrayal → war →
 - Tunables live in `src/config/` and `src/data/`. Don't hard-code gameplay numbers in states.
 - Presentation reacts to `SimEvent`s. The simulation must not depend on them being consumed.
 
+- Enemies are data: add new ones as `EnemyDefinition`s (and a visual profile in `render/views/enemyProfiles.ts`), not as new classes, unless behaviour truly can't be expressed as data.
+- Rewards and loot happen in `Simulation.processDeaths()` off `Enemy.consumeDeath()` (exactly once per death). Loot uses `Simulation.lootRandom`, never the AI stream.
+- Only the `PlayerProfile` is persisted (via `SaveManager` + a `StorageAdapter`). Never save in-progress combat state. Bump `SAVE_VERSION` and add a migration when the format changes.
+- Development-only features go through `DEV_TOOLS_ENABLED` / `src/dev/` and must compile out of `npm run build`; `npm run check` enforces this.
+
+## Originality and licensing
+The game is for commercial release (Steam, iOS, Android). Screen new distinctive proper names and log them in `docs/NAMING.md`; record any third-party code or asset and its licence in `docs/THIRD_PARTY.md` *before* adding it. Never copy protected characters, art, sounds or text from other games. Flag doubtful cases to the owner; don't rename approved content on your own.
+
 ## Art
 Placeholders are procedural (`src/render/textures/`). Follow `docs/ANIMATION.md` for sheet sizes, foot anchors and frame order. Don't generate "final-looking" art to fill space; keep placeholders obviously temporary until art is approved.
 

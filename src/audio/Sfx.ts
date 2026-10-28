@@ -22,7 +22,14 @@ export type SfxName =
   | 'parryAttempt'
   | 'parry'
   | 'postureBreak'
-  | 'riposte';
+  | 'riposte'
+  | 'scytheSwing'
+  | 'scytheHeavySwing'
+  | 'reaperTelegraph'
+  | 'reward'
+  | 'pickup'
+  | 'rarePickup'
+  | 'equip';
 
 export class Sfx {
   private ctx: AudioContext | null = null;
@@ -97,6 +104,36 @@ export class Sfx {
       case 'riposte':
         this.noiseBurst(t, 0.25, 'lowpass', 2200, 120, 0.8);
         this.tone(t, 0.4, 'sawtooth', 160, 35, 0.35);
+        break;
+      case 'scytheSwing':
+        // Longer, airier whoosh than the sword.
+        this.noiseBurst(t, 0.2, 'bandpass', 1100, 380, 0.4);
+        this.tone(t, 0.16, 'sine', 520, 260, 0.05);
+        break;
+      case 'scytheHeavySwing':
+        this.noiseBurst(t, 0.32, 'bandpass', 900, 180, 0.6);
+        this.tone(t, 0.3, 'sine', 300, 110, 0.12);
+        break;
+      case 'reaperTelegraph':
+        // A hollow, rattling whisper.
+        this.noiseBurst(t, 0.3, 'bandpass', 2600, 900, 0.18);
+        this.tone(t, 0.35, 'triangle', 196, 240, 0.08);
+        break;
+      case 'reward':
+        this.tone(t, 0.12, 'triangle', 660, 660, 0.08);
+        this.tone(t + 0.08, 0.16, 'triangle', 990, 990, 0.07);
+        break;
+      case 'pickup':
+        this.tone(t, 0.08, 'square', 880, 1320, 0.05);
+        break;
+      case 'rarePickup':
+        this.tone(t, 0.18, 'sine', 784, 784, 0.12);
+        this.tone(t + 0.12, 0.18, 'sine', 1047, 1047, 0.12);
+        this.tone(t + 0.24, 0.5, 'sine', 1568, 1568, 0.1);
+        break;
+      case 'equip':
+        this.noiseBurst(t, 0.06, 'highpass', 2800, 2000, 0.25);
+        this.tone(t, 0.1, 'square', 520, 700, 0.05);
         break;
       case 'enemySwing':
         this.noiseBurst(t, 0.22, 'bandpass', 900, 300, 0.5);

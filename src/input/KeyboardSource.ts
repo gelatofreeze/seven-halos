@@ -1,4 +1,4 @@
-import { DEBUG_TOGGLE_KEYS, KEY_BINDINGS } from '../config/controls';
+import { DEBUG_TOGGLE_KEYS, KEY_BINDINGS, MENU_TOGGLE_KEYS } from '../config/controls';
 import { ACTIONS, type ActionName } from './InputActions';
 import type { InputHub } from './InputHub';
 
@@ -9,6 +9,7 @@ export class KeyboardSource {
   constructor(
     private readonly hub: InputHub,
     private readonly onDebugToggle: () => void,
+    private readonly onMenuToggle: () => void = () => undefined,
     private readonly target: Window = window,
   ) {
     for (const action of ACTIONS) for (const code of KEY_BINDINGS[action]) this.codeToAction.set(code, action);
@@ -20,6 +21,11 @@ export class KeyboardSource {
     if (DEBUG_TOGGLE_KEYS.includes(e.code)) {
       e.preventDefault();
       if (!e.repeat) this.onDebugToggle();
+      return;
+    }
+    if (MENU_TOGGLE_KEYS.includes(e.code)) {
+      e.preventDefault();
+      if (!e.repeat) this.onMenuToggle();
       return;
     }
     const action = this.codeToAction.get(e.code);

@@ -30,6 +30,28 @@ Collision/hurtbox is 12×26 px. Extra frame width leaves room for sword swings.
 | riposte startup / thrust / recovery | 55–56 / 57 / 58 | attack phase progress |
 | guard broken | 59 | held for the break duration |
 
+## Player with the scythe — `player.scythe`, same 64×48 contract
+Every weapon has its own player sheet with the **same** frame layout, so all shared states work unchanged. `player.scythe` redraws frames 0–59 holding the scythe (carried upright or shouldered), and adds the scythe's own attacks. Both player sheets are 86 frames (12 × 8); frames 60–85 are blank on the sword sheet.
+
+| Range | Frames |
+|---|---|
+| scythe light 1 (high-to-low sweep) startup / active / recovery | 60–61 / 62–63 / 64 |
+| scythe light 2 (backswing) | 65–66 / 67–68 / 69 |
+| scythe light 3 (spin) | 70–71 / 72–73 / 74 |
+| scythe heavy startup / charge hold / active / recovery | 75–76 / 77–78 / 79–80 / 81 |
+| scythe riposte | 82–83 / 84 / 85 |
+
+`WEAPON_SHEETS` maps weapon → sheet and `PLAYER_ATTACK_FRAMES` maps attack id → frames (`src/render/animation/specs.ts`). Scythe trails are wider (radius 25 vs 20) and spectral green-white. The scythe's charge glow grows larger and burns green; the sword's is gold.
+
+## Barrow Reaper — `reaper`, 96×72 frames, feet at (48, 66)
+Collision/hurtbox is 16×32 px. It's a hooded skeleton with green eye sockets and a long scythe (pole ~26 px plus a 17 px crescent), so its silhouette reads very differently from the Sentinel's bulk. 36 frames (8 × 5):
+- idle 0–3, walk 4–9
+- Low Reap: startup 10–12, active 13–14, recovery 15–16
+- Harvest Lunge: startup 17–20, active 21–22, recovery 23–24
+- stagger/parried 25–26, posture broken 27–28, riposted 29–30, dead 31–34, retreat hop 35
+
+Enemy presentation (frames per attack, glint position, eye colour) lives in `src/render/views/enemyProfiles.ts`; `EnemyView` draws any enemy from its profile.
+
 ## Hollow Sentinel — `sentinel`, 96×72 frames, feet at (48, 66)
 Collision/hurtbox is 20×34 px. Ranges: idle 0–3, walk 4–9, windup 10–13 (telegraph, by startup progress), strike 14–15, recover 16–17, stagger/parried 18–19, dead 20–23, posture broken (kneeling, also held while parried) 24–25, riposted 26–27.
 

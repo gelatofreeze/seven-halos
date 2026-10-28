@@ -24,6 +24,24 @@ All timing is in 60 Hz simulation frames (`src/data/weapons.ts`). Each attack ha
 | Hollow Cleave (`sentinel.cleave`) | 40 | 6 | 42 | — | 34 | — | 50 | hyper-armoured |
 | Hollow Cleave, delayed (`sentinel.cleave.delayed`) | 58 | 6 | 42 | — | 36 | — | 50 | same pose, held at the top; hyper-armoured |
 
+## Weapons
+Weapons are data (`src/data/weapons.ts`). The player state machine has no weapon-specific code; it reads the equipped weapon's moveset from `Equipment`.
+
+| | Pilgrim's Sword | Mourning Crescent (scythe) |
+|---|---|---|
+| Light combo | 2 hits: 8/4/18, 7/4/22 frames | 3 hits: 11/6/19, 9/6/21, 13/9/30 frames |
+| Light stamina | 18, 20 | 22, 22, 26 |
+| Reach (hitbox far edge) | ~32 px | ~48–50 px |
+| Arc | in front | high-to-low sweep, a backswing that also covers ~22 px behind, then a full spin |
+| Heavy | 20/5/30, 34 stamina, 42 dmg | 26/7/40, 40 stamina, 50 dmg, 70 px wide arc |
+| Charge | up to 42 frames, ×1.65 dmg | up to 54 frames, ×1.75 dmg (bigger, greener glow) |
+| Riposte | 60 dmg | 64 dmg |
+| Upgrade scaling (per Forge level) | +10% | +7% |
+
+The scythe trades speed and stamina for reach and coverage. A missed heavy leaves 40 frames of recovery. A +3 sword out-damages a +0 scythe per hit, and the sword's lower stamina costs mean more hits per stamina bar, so an upgraded sword stays competitive. Upgrade levels live on owned weapon instances; spending Forge Points on them comes in a later update.
+
+**Switching weapons** (`Simulation.requestEquip`) is refused unless the player is idle, running, jumping, falling or landing. It can't change an active attack, hitbox, riposte or its stamina cost.
+
 ## Dodge roll (`src/config/movement.ts`)
 2 startup frames (vulnerable) → 13 invincible frames → 8 recovery frames, ~80 px of travel, 28 stamina (about 3–4 rolls from full). From frame 18 a buffered jump, attack, roll or guard cancels the recovery. Rolls go in the held direction, or the facing direction when nothing is held. Rolling passes through enemies. Ground only for now (`allowInAir`).
 
@@ -54,6 +72,21 @@ Pressing light attack within 44 px (and 20 px vertically) of an enemy that is **
 - **Read the glint, not the windup**: the white glint always shows in the last third of the startup, for both variants.
 - 0.9 s between attacks. Punishes a broken guard immediately.
 - 180 HP, 2 defense, 10% absorption.
+
+## Barrow Reaper behaviour
+- Faster (74 px/s), notices you from further away (180 px), and keeps its distance: it closes to ~52 px and backs off inside 32 px. After an attack it hops back half the time.
+- Attacks are chosen by distance, with deterministic weighted randomness:
+  - **Low Reap** (0–60 px): 24 startup / 6 active / 26 recovery, 22 damage. A **low**, wide sweep (hitbox 20 px tall), so it can be jumped, rolled, or stepped back from. No hyper-armour, so a quick hit during the wind-up flinches it.
+  - **Harvest Lunge** (44–120 px): 46 / 8 / 56 frames, 38 damage. A deep crouch with a **red** eye flare, then a ~75 px gliding dash and overhead chop. Hyper-armoured. The 56-frame recovery, with the scythe stuck in the ground, is the big punish window.
+- Fragile: 110 HP, 80 posture (it breaks fast), no defence. It is parryable, blockable and riposte-able like the Sentinel. After being parried it favours the lunge.
+- No attack starts faster than 24 frames (0.4 s), and each has a distinct glint. The sweep glints low by the blade, the lunge high and red.
+
+## Rewards, loot and pickups
+- **Currencies** (`rpg/Wallet.ts`): Experience, Gold and Forge Points, kept separate. Each enemy definition lists `rewards`. The simulation grants them when `Enemy.consumeDeath()` returns true, which happens **exactly once per death**. Respawns, lingering hits and repeated processing grant nothing.
+- **Loot** (`world/Loot.ts`): each `loot` entry is rolled independently, once per death, on a dedicated seeded stream (`Simulation.lootRandom`) separate from AI randomness. Every entry always consumes the same random numbers, so eligibility rules (`condition: 'notOwned'`) never shift other rolls.
+  - Reaper: Mourning Crescent 1% (rare, only if not already owned), Grave Dust 35% ×1–2.
+  - Sentinel: Grave Dust 20%.
+- **Pickups** (`world/Pickups.ts`): drops pop out of the enemy and stay in the world until collected, even after the enemy respawns. Walking over one collects it, after a 0.35 s pop. Collection happens once: the pickup is removed as it enters the inventory. Items that fall out of the world reappear next to the player.
 
 ## Hit pipeline (`CombatSystem.step`)
 1. Every combatant writes its active hitboxes into the pooled `HitDetection` sink (with the charge level).

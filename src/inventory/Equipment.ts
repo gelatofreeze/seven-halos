@@ -1,16 +1,28 @@
-import { getAttack, WEAPONS, type WeaponDefinition } from '../data/weapons';
 import type { AttackDefinition } from '../combat/types';
+import { getAttack, getWeapon, type WeaponDefinition } from '../data/weapons';
 
-/** What the character has equipped. The combat state machine reads its moveset from here. */
+/**
+ * What the character has equipped. The combat state machine reads its
+ * moveset from here; the simulation decides *when* equipment may change.
+ */
 export class Equipment {
   weapon: WeaponDefinition;
+  /** Forge upgrade level of the equipped weapon instance. */
+  upgradeLevel = 0;
 
-  constructor(weaponId: string) {
-    this.weapon = Equipment.lookup(weaponId);
+  constructor(weaponId: string, upgradeLevel = 0) {
+    this.weapon = getWeapon(weaponId);
+    this.upgradeLevel = upgradeLevel;
   }
 
-  equipWeapon(weaponId: string): void {
-    this.weapon = Equipment.lookup(weaponId);
+  equipWeapon(weaponId: string, upgradeLevel = 0): void {
+    this.weapon = getWeapon(weaponId);
+    this.upgradeLevel = Math.max(0, Math.min(this.weapon.upgrade.maxLevel, upgradeLevel));
+  }
+
+  /** Outgoing damage multiplier from the weapon's upgrade level. */
+  damageMultiplier(): number {
+    return 1 + this.weapon.upgrade.damagePerLevel * this.upgradeLevel;
   }
 
   lightAttack(): AttackDefinition {
@@ -23,11 +35,5 @@ export class Equipment {
 
   riposteAttack(): AttackDefinition {
     return getAttack(this.weapon.moveset.riposte);
-  }
-
-  private static lookup(id: string): WeaponDefinition {
-    const weapon = WEAPONS[id];
-    if (!weapon) throw new Error(`Unknown weapon: ${id}`);
-    return weapon;
   }
 }

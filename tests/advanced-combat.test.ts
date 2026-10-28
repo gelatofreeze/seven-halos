@@ -4,7 +4,7 @@ import type { DamageResult } from '../src/combat/types';
 import { GUARD, PARRY } from '../src/config/combat';
 import { PLAYER_COMBAT } from '../src/config/player';
 import { getAttack } from '../src/data/weapons';
-import type { Sentinel } from '../src/entities/enemy/Sentinel';
+import type { Enemy } from '../src/entities/enemy/Enemy';
 import type { SimEvent } from '../src/world/SimEvents';
 import type { Simulation } from '../src/world/Simulation';
 import { engagedSim, flatSim, run, ScriptedInput } from './helpers';
@@ -372,7 +372,7 @@ describe('Posture', () => {
       let delayed = 0;
       for (let i = 0; i < 400; i++) {
         enemy.wasParried = parried;
-        if (enemy.chooseAttack().id === 'sentinel.cleave.delayed') delayed++;
+        if (enemy.chooseAttack(20)?.id === 'sentinel.cleave.delayed') delayed++;
       }
       return delayed / 400;
     };
@@ -392,4 +392,4 @@ describe('Light attack latency is unchanged', () => {
 });
 
 // Keep the Sentinel type referenced for helpers above.
-export type { Sentinel };
+export type { Enemy };

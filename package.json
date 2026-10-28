@@ -2,7 +2,7 @@
   "name": "seven-halos",
   "version": "0.1.0",
   "private": true,
-  "description": "SEVEN HALOS — a 2D pixel-art dark-fantasy action RPG built with Phaser and TypeScript.",
+  "description": "SEVEN HALOS \u2014 a 2D pixel-art dark-fantasy action RPG built with Phaser and TypeScript.",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run test && vite build"
+    "check": "npm run typecheck && npm run test && vite build && node scripts/verify-commercial-build.mjs",
+    "build:test": "VITE_DEV_TOOLS=true vite build"
   },
   "engines": {
     "node": ">=20.19.0"
