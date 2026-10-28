@@ -83,7 +83,7 @@ export const WEAPON_SHEETS: Record<string, string> = {
   'mourning-crescent': PLAYER_SCYTHE_SHEET.key,
 };
 
-/** Timed player animations; registered once per player sheet as `<sheet>.<name>`. */
+/** Timed player animations, shared by every player sheet; frames are picked from simulation state time (`animFrame`). */
 export const PLAYER_ANIMS: readonly AnimSpec[] = [
   { key: 'idle', frames: PLAYER_FRAMES.idle, fps: 5, loop: true },
   { key: 'run', frames: PLAYER_FRAMES.run, fps: 14, loop: true },
@@ -146,6 +146,25 @@ export const REAPER_ANIMS: readonly AnimSpec[] = [
   { key: 'reaper.dead', frames: REAPER_FRAMES.dead, fps: 7, loop: false },
   { key: 'reaper.retreat', frames: REAPER_FRAMES.retreat, fps: 1, loop: false },
 ];
+
+/**
+ * Frame of a timed animation `elapsed` seconds after its state began.
+ * Looping animations wrap; one-shots hold their last frame forever, so a
+ * finished animation (death, landing) can never restart. Driven by
+ * simulation state time, so it also freezes during hit-stop.
+ */
+export function animFrame(anim: Pick<AnimSpec, 'frames' | 'fps' | 'loop'>, elapsed: number): number {
+  const n = anim.frames.length;
+  const i = Math.floor(Math.max(0, elapsed) * anim.fps);
+  return anim.frames[anim.loop ? i % n : Math.min(n - 1, i)]!;
+}
+
+/** Look up a timed animation by name in an animation list. */
+export function findAnim(anims: readonly AnimSpec[], name: string): AnimSpec {
+  const a = anims.find((x) => x.key === name || x.key.endsWith(`.${name}`));
+  if (!a) throw new Error(`Missing animation: ${name}`);
+  return a;
+}
 
 /** Pick a frame from a logic-driven range using 0..1 progress. */
 export function frameAt(frames: readonly number[], progress: number): number {

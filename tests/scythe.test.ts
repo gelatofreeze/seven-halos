@@ -44,14 +44,15 @@ function swing(sim: Simulation, input: ScriptedInput, hold: () => void, press: '
 }
 
 describe('Mourning Crescent (scythe)', () => {
-  it('light attack frame data: slower startup and longer active window than the sword', () => {
+  it('light attack frame data: slower startup and a longer commitment than the sword', () => {
     const { sim, input, hold } = target(2, true);
     const active = swing(sim, input, hold, 'attackPressed');
     expect(active[0]).toBe(L1.startupFrames);
     expect(active.at(-1)).toBe(L1.startupFrames + L1.activeFrames - 1);
     const sword = getAttack('sword.light.1');
     expect(L1.startupFrames).toBeGreaterThan(sword.startupFrames);
-    expect(L1.staminaCost).toBeGreaterThan(sword.staminaCost);
+    // Since 2B.1 the scythe's sweeps are stamina-efficient; its cost is commitment (startup, recovery), not stamina.
+    expect(L1.recoveryFrames + L1.activeFrames).toBeGreaterThanOrEqual(sword.recoveryFrames + sword.activeFrames);
   });
 
   it('out-reaches the sword: hits a target the sword cannot', () => {
@@ -186,7 +187,7 @@ describe('Weapon switching', () => {
   it('refuses items that are not weapons or not owned', () => {
     const sim = flatSim();
     const dust = sim.profile.inventory.add('grave-dust', 2);
-    expect(sim.requestEquip(dust.uid)).toBe('invalid');
+    expect(sim.requestEquip(dust.uid)).toBe('incompatible');
     expect(sim.requestEquip(9999)).toBe('invalid');
   });
 });

@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { lerp } from '../../core/math';
 import type { Enemy } from '../../entities/enemy/Enemy';
-import { frameAt } from '../animation/specs';
+import { animFrame, findAnim, frameAt } from '../animation/specs';
 import { TEX } from '../textures/registerTextures';
-import { ENEMY_VISUALS, type EnemyVisualProfile } from './enemyProfiles';
+import { deathPose, ENEMY_VISUALS, type EnemyVisualProfile } from './enemyProfiles';
 
 /** Renders any enemy from its visual profile: animation, attack telegraphs, health/posture bar, riposte marker. */
 export class EnemyView {
@@ -46,7 +46,8 @@ export class EnemyView {
     let eyeIntensity = 0.5;
     let eyeTint = pr.eye.tint;
     this.glint.setVisible(false);
-    const play = (name: string) => s.anims.play(`${pr.anim}.${name}`, true);
+    // Frames come from simulation state time: no restarts, frozen during hit-stop.
+    const play = (name: string) => s.setFrame(animFrame(findAnim(pr.anims, name), e.fsm.time));
     switch (e.fsm.current) {
       case 'idle':
         play('idle');
@@ -55,13 +56,11 @@ export class EnemyView {
         play(Math.abs(b.vx) > 4 ? 'walk' : 'idle');
         break;
       case 'retreat':
-        s.anims.stop();
         play('retreat');
         break;
       case 'attack': {
         const r = e.attack;
         const visual = pr.attacks[e.currentAttack.id];
-        s.anims.stop();
         if (!visual) break;
         if (r.phase === 'startup') {
           s.setFrame(frameAt(visual.frames.startup, r.phaseProgress));
@@ -93,7 +92,8 @@ export class EnemyView {
         eyeIntensity = 0.2;
         break;
       case 'parried':
-        play(e.fsm.ticks < 10 ? 'parried' : 'broken');
+        if (e.fsm.ticks < 10) play('parried');
+        else s.setFrame(animFrame(findAnim(pr.anims, 'broken'), e.fsm.time - 10 / 60));
         eyeIntensity = 0.15;
         break;
       case 'postureBroken':
@@ -105,7 +105,7 @@ export class EnemyView {
         eyeIntensity = 0;
         break;
       case 'dead':
-        play('dead');
+        // Handled below with the shared death presentation.
         eyeIntensity = 0;
         break;
     }
@@ -113,7 +113,10 @@ export class EnemyView {
     if (e.hitFlash > 0) s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
     else if (e.fsm.is('postureBroken') && e.fsm.ticks < 8) s.setTint(0xffd27a).setTintMode(Phaser.TintModes.FILL);
     else s.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
-    s.setAlpha(e.isDead ? Math.max(0, 1 - e.fsm.time / pr.deathFade) : 1);
+    if (e.isDead) {
+      const pose = deathPose(findAnim(pr.anims, 'dead'), pr.death, e.fsm.time);
+      s.setFrame(pose.frame).setAlpha(pose.alpha);
+    } else s.setAlpha(1);
 
     this.eyeGlow
       .setPosition(x + e.facing * pr.eye.x, y - pr.eye.y)

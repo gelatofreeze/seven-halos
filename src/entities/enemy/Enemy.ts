@@ -23,6 +23,8 @@ export type EnemyStateId = 'idle' | 'approach' | 'attack' | 'retreat' | 'stagger
 type EnemyState = State<Enemy, EnemyStateId>;
 
 const GRAVITY = 1100;
+/** Speed of the small shove a killing blow gives the body, px/s. */
+const DEATH_SHOVE = 40;
 const MAX_FALL = 420;
 
 let nextEnemyId = 100;
@@ -59,6 +61,8 @@ export class Enemy implements Combatant, RiposteTarget {
   currentAttack: AttackDefinition;
   /** Number of times this enemy has died. */
   deaths = 0;
+  /** Facing of the most recent hit taken, for the death shove. */
+  lastHitFacing: Facing = 1;
   /** Set on death, consumed once by the simulation to grant rewards and roll loot. */
   private deathPending = false;
   private nextAttack: AttackDefinition | null = null;
@@ -223,6 +227,7 @@ export class Enemy implements Combatant, RiposteTarget {
     if (this.isDead) return;
     const dealt = this.health.damage(result.damage);
     this.hitsTaken++;
+    this.lastHitFacing = hit.facing;
     this.hitFlash = 0.1;
     this.events.push({
       type: 'hit',
@@ -409,10 +414,12 @@ const postureBroken: EnemyState = {
 const dead: EnemyState = {
   enter(e) {
     e.markDead();
+    // No residual momentum (e.g. from a lunge): just a short shove from the killing blow.
+    e.body.vx = e.lastHitFacing * DEATH_SHOVE;
     e.events.push({ type: 'death', faction: 'enemy', x: e.body.footX, y: e.body.footY });
   },
   update(e, dt) {
-    e.body.vx = approach(e.body.vx, 0, 600 * dt);
+    e.body.vx = approach(e.body.vx, 0, 900 * dt);
     if (e.def.respawnDelay !== null && e.fsm.time >= e.def.respawnDelay) e.respawn();
   },
 };

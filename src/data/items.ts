@@ -1,3 +1,5 @@
+import type { SlotType } from './equipmentSlots';
+
 /**
  * Item definitions (what an item *is*). Owned copies are `ItemInstance`s in
  * the inventory. New kinds (armor, shields, accessories, consumables) slot in
@@ -16,6 +18,10 @@ export interface ItemDefinition {
   description: string;
   /** For weapons: the weapon definition this item equips. */
   weaponId?: string;
+  /** Slot types this item can be equipped in (see data/equipmentSlots.ts); none = not equippable. */
+  equip?: readonly SlotType[];
+  /** Occupies the off hand too (none yet; the loadout rules already enforce it). */
+  twoHanded?: boolean;
 }
 
 export const ITEMS: Record<string, ItemDefinition> = {
@@ -26,6 +32,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
     rarity: 'common',
     stackable: false,
     weaponId: 'pilgrim-sword',
+    equip: ['weapon'],
     description: 'A plain straight sword. Quick, honest and dependable.',
   },
   'mourning-crescent': {
@@ -35,6 +42,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
     rarity: 'rare',
     stackable: false,
     weaponId: 'mourning-crescent',
+    equip: ['weapon'],
     description: 'A barrow reaper’s scythe. Wide, sweeping reach; slow to recover when it misses.',
   },
   'grave-dust': {

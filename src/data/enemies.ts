@@ -28,7 +28,8 @@ export interface LootEntry {
 export interface Rewards {
   experience: number;
   gold: number;
-  forgePoints: number;
+  /** Weapon XP: one shared pool spent on weapon upgrades. */
+  weaponXp: number;
 }
 
 export interface EnemyDefinition {
@@ -93,7 +94,7 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
     flinchFrames: 10,
     reactions: { parriedFrames: 75, parryPostureDamage: 60, postureBrokenFrames: 110, ripostedFrames: 60 },
     respawnDelay: 4,
-    rewards: { experience: 40, gold: 12, forgePoints: 1 },
+    rewards: { experience: 40, gold: 12, weaponXp: 10 },
     loot: [{ item: 'grave-dust', chance: 0.2 }],
   },
   'barrow-reaper': {
@@ -119,7 +120,7 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
     flinchFrames: 14,
     reactions: { parriedFrames: 70, parryPostureDamage: 50, postureBrokenFrames: 100, ripostedFrames: 60 },
     respawnDelay: 6,
-    rewards: { experience: 65, gold: 20, forgePoints: 2 },
+    rewards: { experience: 65, gold: 20, weaponXp: 20 },
     loot: [
       // The headline drop: rare, so finding one should feel like an event.
       { item: 'mourning-crescent', chance: 0.01, rarity: 'rare', condition: 'notOwned' },

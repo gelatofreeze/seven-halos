@@ -18,7 +18,7 @@ export const devTools = {
     sim.spawnPickup(itemId, 1, p.body.footX + p.facing * 28, p.body.footY - 4, 0);
   },
   addCurrencies(sim: Simulation): void {
-    sim.profile.wallet.add({ experience: 500, gold: 200, forgePoints: 10 });
+    sim.profile.wallet.add({ experience: 500, gold: 200, weaponXp: 300 });
     sim.profile.touch();
   },
   resetSave(save: SaveManager, sim: Simulation): void {
@@ -27,13 +27,13 @@ export const devTools = {
   },
 };
 
-/** The inventory panel's development section. Only ever called behind `DEV_TOOLS_ENABLED`. */
+/** The pause menu's development section. Only ever called behind `DEV_TOOLS_ENABLED`. */
 export function renderDevSection(container: HTMLElement, sim: Simulation, save: SaveManager, done: (message: string) => void): void {
   const title = document.createElement('div');
-  title.className = 'inventory-section';
+  title.className = 'pm-dev-title';
   title.textContent = 'Development tools (test builds only)';
   const row = document.createElement('div');
-  row.className = 'inventory-dev';
+  row.className = 'pm-dev';
   const add = (label: string, fn: () => void, message: string) => {
     const b = document.createElement('button');
     b.textContent = label;
@@ -45,7 +45,7 @@ export function renderDevSection(container: HTMLElement, sim: Simulation, save: 
   };
   add('Grant Mourning Crescent', () => devTools.grantItem(sim, 'mourning-crescent'), 'Mourning Crescent added to your inventory.');
   add('Drop scythe in front', () => devTools.dropInFront(sim, 'mourning-crescent'), 'A scythe lies in front of you. Close this and walk over it.');
-  add('+ Currencies', () => devTools.addCurrencies(sim), 'Added 500 XP, 200 Gold, 10 Forge Points.');
+  add('+ Currencies', () => devTools.addCurrencies(sim), 'Added 500 Character XP, 200 Gold, 300 Weapon XP.');
   add('Reset save', () => devTools.resetSave(save, sim), 'Save reset: fresh profile.');
   container.append(title, row);
 }

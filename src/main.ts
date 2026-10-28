@@ -38,9 +38,9 @@ const toggleMenu = () => services.onMenuToggle?.();
 
 new KeyboardSource(services.input, toggleDebug, toggleMenu);
 
-// The inventory lives behind a small utility button rather than another large combat button.
+// The pause menu lives behind a small utility button rather than another large combat button.
 const utilityButtons = [
-  { label: 'BAG', onPress: toggleMenu },
+  { label: 'MENU', onPress: toggleMenu },
   { label: 'DBG', onPress: toggleDebug },
 ];
 if (document.fullscreenEnabled) {
@@ -60,11 +60,12 @@ const touch = new TouchControls(services.input, app, utilityButtons, () => servi
 
 // ---- Browser hygiene: no scrolling, zooming or stuck inputs ------------------------------
 const block = (e: Event) => e.preventDefault();
-// Block page scrolling everywhere except inside the inventory list, which may need to scroll.
+// Block page scrolling everywhere except inside the menu's scrollable areas (the menu itself
+// cancels scrolling while an item is being dragged).
 document.addEventListener(
   'touchmove',
   (e) => {
-    if (!(e.target instanceof Element && e.target.closest('.inventory-body'))) e.preventDefault();
+    if (!(e.target instanceof Element && e.target.closest('.menu-scroll'))) e.preventDefault();
   },
   { passive: false },
 );

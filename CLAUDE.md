@@ -24,6 +24,10 @@ One Creator; seven gods, each with a Halo; sibling love → betrayal → war →
 - Enemies are data: add new ones as `EnemyDefinition`s (and a visual profile in `render/views/enemyProfiles.ts`), not as new classes, unless behaviour truly can't be expressed as data.
 - Rewards and loot happen in `Simulation.processDeaths()` off `Enemy.consumeDeath()` (exactly once per death). Loot uses `Simulation.lootRandom`, never the AI stream.
 - Only the `PlayerProfile` is persisted (via `SaveManager` + a `StorageAdapter`). Never save in-progress combat state. Bump `SAVE_VERSION` and add a migration when the format changes.
+- Currencies: Character XP, Weapon XP, Gold. Materials are items, not currencies. Weapon XP is never shown on the combat HUD.
+- Equipment goes through the `Loadout` rules and `Simulation.requestEquip(uid, slot)`; upgrades through `rpg/WeaponUpgrades.ts`. UI code never mutates the profile directly except backpack order (`Inventory.move`).
+- Sprites pick frames from logic state (`animFrame`); never call `anims.play` per frame.
+- Run `validateContent` / `validateVisuals` (part of `npm test`) when adding content; see docs/CONTENT.md.
 - Development-only features go through `DEV_TOOLS_ENABLED` / `src/dev/` and must compile out of `npm run build`; `npm run check` enforces this.
 
 ## Originality and licensing

@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { DISPLAY } from '../../config/display';
-import { PLAYER_ANIMS, PLAYER_SCYTHE_SHEET, PLAYER_SHEET, REAPER_ANIMS, REAPER_SHEET, SENTINEL_ANIMS, SENTINEL_SHEET, type AnimSpec, type SheetSpec } from '../animation/specs';
+import { PLAYER_SCYTHE_SHEET, PLAYER_SHEET, REAPER_SHEET, SENTINEL_SHEET, type SheetSpec } from '../animation/specs';
 import { buildPlayerScytheSheet, buildPlayerSheet, buildReaperSheet, buildSentinelSheet } from './characterArt';
 import {
   buildAltar,
@@ -79,24 +79,4 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
   add(TEX.altar, buildAltar);
   add(TEX.iconWeapon, buildWeaponIcon);
   add(TEX.iconMaterial, buildMaterialIcon);
-}
-
-function addAnims(scene: Phaser.Scene, sheet: string, anims: readonly AnimSpec[], prefix = ''): void {
-  for (const a of anims) {
-    const key = prefix + a.key;
-    if (scene.anims.exists(key)) continue;
-    scene.anims.create({
-      key,
-      frames: a.frames.map((frame) => ({ key: sheet, frame })),
-      frameRate: a.fps,
-      repeat: a.loop ? -1 : 0,
-    });
-  }
-}
-
-export function registerAnimations(scene: Phaser.Scene): void {
-  // Player animations exist once per weapon sheet: "<sheet>.<name>".
-  for (const sheet of [PLAYER_SHEET.key, PLAYER_SCYTHE_SHEET.key]) addAnims(scene, sheet, PLAYER_ANIMS, `${sheet}.`);
-  addAnims(scene, SENTINEL_SHEET.key, SENTINEL_ANIMS);
-  addAnims(scene, REAPER_SHEET.key, REAPER_ANIMS);
 }

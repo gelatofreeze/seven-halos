@@ -2,12 +2,15 @@ import { CombatSystem } from '../combat/CombatSystem';
 import type { Combatant } from '../combat/types';
 import { seeded } from '../core/random';
 import { getEnemy } from '../data/enemies';
+import { getSlot, type SlotId } from '../data/equipmentSlots';
 import { getItem } from '../data/items';
 import { Enemy } from '../entities/enemy/Enemy';
 import { Player } from '../entities/player/Player';
 import { createInputFrame, type InputProvider } from '../input/InputActions';
 import { CollisionWorld } from '../physics/CollisionWorld';
+import { checkEquip, equipInto } from '../rpg/Loadout';
 import { PlayerProfile } from '../rpg/Profile';
+import { upgradeWeapon, type UpgradeResult } from '../rpg/WeaponUpgrades';
 import type { LevelData } from './Level';
 import { rollLoot } from './Loot';
 import { createPickup, PICKUP_ARM_TIME, stepPickup, type Pickup } from './Pickups';
@@ -25,7 +28,8 @@ export interface SimulationOptions {
   devPickups?: boolean;
 }
 
-export type EquipResult = 'equipped' | 'busy' | 'invalid';
+/** 'invalid': not an owned item. Other failures come from the loadout rules (rpg/Loadout.ts). */
+export type EquipResult = 'equipped' | 'busy' | 'invalid' | 'incompatible' | 'blocked-by-two-handed' | 'required';
 
 /** Extra reach around the player's body for collecting pickups, px. */
 const PICKUP_REACH = 6;
@@ -109,21 +113,47 @@ export class Simulation {
   // ---- Equipment ---------------------------------------------------------------------------
 
   /**
-   * Equip an owned weapon instance. Refused while the player is mid-action
+   * Equip an owned instance into `slot` (validated by the loadout rules).
+   * Changing a functional slot is refused while the player is mid-action
    * (attacking, rolling, guarding, staggered...) so a swap can never alter an
    * active attack, hitbox, riposte or its stamina cost.
    */
-  requestEquip(uid: number): EquipResult {
-    const instance = this.profile.inventory.find(uid);
-    if (!instance || getItem(instance.itemId).kind !== 'weapon') return 'invalid';
-    if (!this.player.canChangeEquipment()) return 'busy';
-    if (this.profile.equippedWeaponUid !== uid) {
-      this.profile.equippedWeaponUid = uid;
-      this.profile.touch();
+  requestEquip(uid: number, slot: SlotId = 'mainHand'): EquipResult {
+    const profile = this.profile;
+    if (!profile.inventory.find(uid)) return 'invalid';
+    const check = checkEquip(profile.inventory, profile.loadout, uid, slot);
+    if (check === 'not-owned') return 'invalid';
+    if (check !== 'ok') return check;
+    const affectsPlayer = getSlot(slot).functional || getSlot(profile.loadout.slotOf(uid) ?? slot).functional;
+    if (affectsPlayer && !this.player.canChangeEquipment()) return 'busy';
+    if (profile.loadout.get(slot) !== uid) {
+      equipInto(profile.inventory, profile.loadout, uid, slot);
+      profile.touch();
     }
-    this.applyEquippedWeapon();
-    this.events.push({ type: 'equip', weaponId: this.player.equipment.weapon.id });
+    if (affectsPlayer) {
+      this.applyEquippedWeapon();
+      this.events.push({ type: 'equip', weaponId: this.player.equipment.weapon.id });
+    }
     return 'equipped';
+  }
+
+  /**
+   * Upgrade a weapon instance with Weapon XP (see rpg/WeaponUpgrades.ts for
+   * the transaction). The equipped weapon's stats follow at the next neutral
+   * moment, so an attack already in progress keeps its numbers.
+   */
+  upgradeWeapon(uid: number, expectedLevel: number): UpgradeResult {
+    const result = upgradeWeapon(this.profile, uid, expectedLevel);
+    if (result.ok) {
+      if (uid === this.profile.equippedWeaponUid) this.syncEquipmentFromProfile();
+      this.events.push({ type: 'upgrade', uid, itemId: this.profile.inventory.find(uid)!.itemId, level: result.level, cost: result.cost });
+    }
+    return result;
+  }
+
+  /** A menu opened or closed: buffered player actions are dropped rather than fired later. */
+  discardQueuedInput(): void {
+    this.player.clearBufferedActions();
   }
 
   /** Re-read the profile's equipped weapon at the next neutral moment. */

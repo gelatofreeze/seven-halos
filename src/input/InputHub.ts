@@ -51,6 +51,14 @@ export class InputHub implements InputProvider {
     this.axes.clear();
   }
 
+  /**
+   * Drop presses that haven't been sampled yet, so a tap made just before a
+   * menu opened (or while it was open) never fires after it closes.
+   */
+  discardPendingPresses(): void {
+    for (const action of ACTIONS) this.consumedCount.set(action, this.pressCount.get(action)!);
+  }
+
   isHeld(action: ActionName): boolean {
     return this.holders.get(action)!.size > 0;
   }

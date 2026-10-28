@@ -53,11 +53,15 @@ Enemy dies ──► Enemy.markDead() (once) ──► Simulation.processDeaths(
                                              ├─ rollLoot(def.loot, lootRandom) ──► Pickups in the world
                                              └─ SimEvents: reward, lootDrop
 Player walks over pickup ──► profile.inventory.add() ──► SimEvent: pickup
-Inventory panel ──► Simulation.requestEquip(uid) (refused mid-action) ──► Player.equipment
+Pause menu ──► Simulation.requestEquip(uid, slot) ──► Loadout rules (rpg/Loadout.ts) ──► Player.equipment (refused mid-action)
+Pause menu ──► Simulation.upgradeWeapon(uid, tier) ──► WeaponUpgrades transaction ──► stats re-applied when neutral
 PlayerProfile.revision changes ──► SaveManager.saveIfChanged() (≤ 1/s, on hide/pagehide)
 ```
 - The simulation owns *when* rewards, drops and equipment changes happen. The profile owns *what* the player has. Presentation only listens to events.
-- **Saves contain only the profile.** Fights, enemies and loose pickups are never saved, so a reload can't duplicate an item or replay a reward. The format is versioned (`SAVE_VERSION`); unreadable saves are backed up and replaced, and saves from a newer version are left untouched.
+- **Saves contain only the profile.** Fights, enemies and loose pickups are never saved, so a reload can't duplicate an item or replay a reward. The format is versioned (`SAVE_VERSION`, now 2). Older saves go through `MIGRATIONS` one version at a time: the original is copied to `seven-halos.save.v<N>-backup` first (if that fails, the old save is never overwritten), and the result is saved straight away in the new format, so a migration runs once. Unreadable saves are backed up and replaced, and saves from a newer version are left untouched.
+- **Equipment** is a `Loadout` of slot → instance uid. Slots are data (`data/equipmentSlots.ts`); items list the slot types they fit (`ItemDefinition.equip`). The rules (compatibility, the required main hand, two-handed weapons clearing the off hand) live in `rpg/Loadout.ts`, not the DOM.
+- **Pause menu** (`ui/PauseMenu.ts`) draws `ui/menuModel.ts` data and routes gestures; it redraws only after an action. It has three layouts from the available size (`config/menu.ts`): *wide* (four columns), *split* (equipment + backpack + a tabbed column; phones in landscape) and *tabs*. Opening and closing release held inputs and drop pending (`InputHub.discardPendingPresses`) and buffered (`Simulation.discardQueuedInput`) presses. Its keyboard handler runs in the capture phase, so no key reaches gameplay while it's open.
+- **Content validation** (`data/validateContent.ts`, `render/validateVisuals.ts`) runs in the test suite. See docs/CONTENT.md.
 - **Development tools** are gated by `DEV_TOOLS_ENABLED` (`src/config/build.ts`): on in `npm run dev` and in `npm run build:test` (GitHub Pages preview), off in `npm run build`. `npm run check` fails if dev-tool code appears in the commercial bundle.
 
 ## Rendering resolution

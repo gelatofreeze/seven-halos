@@ -29,16 +29,32 @@ Weapons are data (`src/data/weapons.ts`). The player state machine has no weapon
 
 | | Pilgrim's Sword | Mourning Crescent (scythe) |
 |---|---|---|
-| Light combo | 2 hits: 8/4/18, 7/4/22 frames | 3 hits: 11/6/19, 9/6/21, 13/9/30 frames |
-| Light stamina | 18, 20 | 22, 22, 26 |
-| Reach (hitbox far edge) | ~32 px | ~48–50 px |
+| Light combo | 2 hits: 8/4/18, 7/4/22 frames | 3 hits: 10/6/19, 8/6/21, 12/9/30 frames |
+| Light damage / posture | 26/14, 30/18 | 24/16, 26/18, 35/32 |
+| Light stamina | 18, 20 | 17, 17, 20 |
+| Reach (furthest connecting distance, feet to feet) | 46 px | 60 px |
 | Arc | in front | high-to-low sweep, a backswing that also covers ~22 px behind, then a full spin |
-| Heavy | 20/5/30, 34 stamina, 42 dmg | 26/7/40, 40 stamina, 50 dmg, 70 px wide arc |
-| Charge | up to 42 frames, ×1.65 dmg | up to 54 frames, ×1.75 dmg (bigger, greener glow) |
-| Riposte | 60 dmg | 64 dmg |
-| Upgrade scaling (per Forge level) | +10% | +7% |
+| Heavy | 20/5/30, 34 stamina, 42 dmg | 24/7/40, 36 stamina, 58 dmg, 70 px wide arc |
+| Charge | up to 42 frames, ×1.65 dmg | up to 50 frames, ×1.8 dmg, ×1.7 posture (bigger, greener glow) |
+| Riposte | 60 dmg | 72 dmg |
+| Upgrade scaling (per tier) | +10% | +9% |
 
-The scythe trades speed and stamina for reach and coverage. A missed heavy leaves 40 frames of recovery. A +3 sword out-damages a +0 scythe per hit, and the sword's lower stamina costs mean more hits per stamina bar, so an upgraded sword stays competitive. Upgrade levels live on owned weapon instances; spending Forge Points on them comes in a later update.
+The scythe trades speed for reach, coverage and posture pressure. The sword starts faster (8 vs 10 frames) and commits for less time, so it wins up close and on quick punishes. A missed scythe heavy still leaves 40 frames of recovery (the whiff penalty). Upgrade tiers live on owned weapon instances and are bought with Weapon XP (see *Progression* below).
+
+### Balance benchmark (update 2B.1)
+`tests/benchmark.ts` runs a reproducible 12 s fight against a pinned Sentinel dummy (health and posture refilled every step). *Sustained* presses only when stamina covers the next attack (how people play); *burst* mashes from full stamina. Sword at 20 px, scythe at 30 px. `tests/weapon-balance.test.ts` keeps the results inside guard rails.
+
+| Benchmark | Sword | Scythe before | Scythe after |
+|---|---|---|---|
+| Light combo, sustained DPS | 26.2 | 20.8 (0.79×) | 24.5 (0.94×) |
+| Light combo, burst DPS | 26.4 | 22.6 | 23.7 |
+| Light damage per stamina | 1.26 | 0.95 | 1.25 |
+| Light posture over 12 s | 204 | 156 | 244 |
+| Heavy, sustained DPS | 24.0 | 21.5 | 25.0 |
+| Charged heavy, sustained DPS | 25.4 | 25.7 | 30.7 |
+| Reach | 46 px | 60 px | 60 px |
+
+Why: in 2B the scythe lost on every axis except reach. It was slower, costlier and weaker per stamina, so it felt bad even when spacing well. The changes are a frame off every startup, about 20% less stamina, a harder finisher and heavy, more posture damage, and a stronger charge. Together they bring sustained light DPS to about 94% of the sword's, with equal damage per stamina. Its posture damage and charged heavy are now clearly better, and reach and arcs are untouched. The sword keeps the edge in speed, burst and short commitments. No weapon is better at everything.
 
 **Switching weapons** (`Simulation.requestEquip`) is refused unless the player is idle, running, jumping, falling or landing. It can't change an active attack, hitbox, riposte or its stamina cost.
 
@@ -82,11 +98,23 @@ Pressing light attack within 44 px (and 20 px vertically) of an enemy that is **
 - No attack starts faster than 24 frames (0.4 s), and each has a distinct glint. The sweep glints low by the blade, the lunge high and red.
 
 ## Rewards, loot and pickups
-- **Currencies** (`rpg/Wallet.ts`): Experience, Gold and Forge Points, kept separate. Each enemy definition lists `rewards`. The simulation grants them when `Enemy.consumeDeath()` returns true, which happens **exactly once per death**. Respawns, lingering hits and repeated processing grant nothing.
+- **Currencies** (`rpg/Wallet.ts`): Character XP, Weapon XP and Gold, kept separate (materials are items, not a currency). Each enemy definition lists `rewards`. The simulation grants them when `Enemy.consumeDeath()` returns true, which happens **exactly once per death**. Respawns, lingering hits and repeated processing grant nothing.
 - **Loot** (`world/Loot.ts`): each `loot` entry is rolled independently, once per death, on a dedicated seeded stream (`Simulation.lootRandom`) separate from AI randomness. Every entry always consumes the same random numbers, so eligibility rules (`condition: 'notOwned'`) never shift other rolls.
   - Reaper: Mourning Crescent 1% (rare, only if not already owned), Grave Dust 35% ×1–2.
   - Sentinel: Grave Dust 20%.
 - **Pickups** (`world/Pickups.ts`): drops pop out of the enemy and stay in the world until collected, even after the enemy respawns. Walking over one collects it, after a 0.35 s pop. Collection happens once: the pickup is removed as it enters the inventory. Items that fall out of the world reappear next to the player.
+
+## Progression: Weapon XP and upgrades
+- **Weapon XP (WXP)** is one shared pool earned from kills (Sentinel 10, Reaper 20). It's spent to raise a *specific weapon instance* one tier; duplicate weapons keep separate tiers.
+- **Cost curve** (`config/progression.ts`): tier L → L+1 costs `40 × 1.35^L`, rounded to 5 (40, 55, 75, 100, 135, 180, 240, 325, 440, 595; 2,185 WXP from +0 to +10). The maximum tier comes from the weapon (`upgrade.maxLevel`, 10 for both).
+- **Transaction** (`rpg/WeaponUpgrades.ts`, reusable by a future blacksmith): validate ownership, weapon, the expected tier, max tier and balance → deduct once → raise the tier → mark the profile changed (it then saves). Any failure changes nothing. A repeated tap carries the old expected tier and is refused, so one press can never pay twice. `Simulation.upgradeWeapon` applies the new stats to the equipped weapon at the next neutral moment, never mid-attack.
+- WXP is shown only in the pause menu, never on the combat HUD.
+- **Save migration v1 → v2:** Forge Points become WXP at **1 FP = 10 WXP**, which matches what the same kills earn now.
+
+## Enemy death
+Death is a state the enemy enters once (`Enemy.markDead`, rewards via `consumeDeath`). From that step it has no hurtbox and no hitboxes, and a hit it landed in the same step it died is discarded (`CombatSystem` skips dead owners). It keeps no lunge momentum, only a 40 px/s shove from the killing blow. The sprite plays the death frames once from simulation state time and holds the last one. It then fades as set in its visual profile (`death: { fadeDelay, fadeDuration, remains, remainsAlpha }`). Training enemies respawn at their spawn point with full health and zero posture.
+
+The 2B glitch: views called Phaser's `anims.play` every frame, which restarts a finished one-shot animation, so the collapse replayed in a loop while the body faded and slid. Frames are now picked by `animFrame(spec, fsm.time)` for every timed animation.
 
 ## Hit pipeline (`CombatSystem.step`)
 1. Every combatant writes its active hitboxes into the pooled `HitDetection` sink (with the charge level).
