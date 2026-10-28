@@ -75,6 +75,39 @@ body {
   border-color: #fff3c4;
 }
 
+.touch-stick {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid var(--ui-edge);
+  background: radial-gradient(circle, rgba(70, 60, 110, 0.35), rgba(14, 12, 26, 0.45));
+  pointer-events: none;
+}
+
+.touch-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46%;
+  height: 46%;
+  border-radius: 50%;
+  border: 2px solid #fff3c4;
+  background: rgba(120, 108, 170, 0.75);
+  pointer-events: none;
+}
+
+.touch-debug-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 2px 4px;
+  border: 1px solid #ff3355;
+  border-radius: 8px;
+  background: rgba(255, 51, 85, 0.35);
+  color: #fff;
+  font-size: 10px;
+  pointer-events: none;
+}
+
 .touch-utility-bar {
   position: fixed;
   z-index: 20;

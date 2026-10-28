@@ -12,44 +12,72 @@ export const KEY_BINDINGS: Record<ActionName, readonly string[]> = {
 
 export const DEBUG_TOGGLE_KEYS: readonly string[] = ['Backquote', 'F3'];
 
-export type TouchAnchor = 'bottom-left' | 'bottom-right';
-
+/** Action buttons are anchored to the bottom-right corner (inside the safe area). */
 export interface TouchButtonConfig {
   action: ActionName;
   label: string;
-  anchor: TouchAnchor;
-  /** Offset of the button centre from the anchored corner (inward), CSS px, before safe-area insets. */
+  /** Offset of the button centre from the bottom-right corner (inward), CSS px. */
   x: number;
   y: number;
   /** Diameter, CSS px. */
   size: number;
-  /** Buttons in the same slide group hand a moving finger over to each other. */
-  slideGroup?: string;
+}
+
+/**
+ * Floating joystick: a finger landing anywhere in the left zone becomes the
+ * stick's centre, so there is nothing to aim at. Dragging past the radius
+ * drags the base along so the stick never "runs out".
+ */
+export interface JoystickConfig {
+  /** Fraction of the screen width, from the left, that starts the joystick. */
+  zoneWidth: number;
+  /** Knob travel radius, CSS px. */
+  radius: number;
+  /** Fraction of the radius ignored around the centre. */
+  deadzone: number;
+  /** Fraction of the radius at which horizontal output reaches full speed. */
+  fullTiltAt: number;
+  /** Downward deflection fraction that holds "down" (drop through platforms). */
+  downThreshold: number;
+  /** Where the idle stick is drawn, from the bottom-left corner, CSS px. */
+  restX: number;
+  restY: number;
 }
 
 export interface TouchLayoutConfig {
   /** 'auto' shows touch controls on touch-capable devices; add ?touch=1 / ?touch=0 to force. */
   visibility: 'auto' | 'always' | 'never';
-  /** Extra hit radius around each button, CSS px. */
-  hitSlop: number;
+  /**
+   * A touch in the button zone goes to the nearest button whose centre is
+   * within this many radii, so slightly missed presses still count.
+   */
+  hitRadiusScale: number;
   /** Minimum gap from the screen edge (added to safe-area insets), CSS px. */
   edgeMargin: number;
   idleOpacity: number;
   activeOpacity: number;
+  joystick: JoystickConfig;
   buttons: readonly TouchButtonConfig[];
 }
 
 export const TOUCH_LAYOUT: TouchLayoutConfig = {
   visibility: 'auto',
-  hitSlop: 14,
+  hitRadiusScale: 1.6,
   edgeMargin: 14,
   idleOpacity: 0.42,
   activeOpacity: 0.85,
+  joystick: {
+    zoneWidth: 0.45,
+    radius: 46,
+    deadzone: 0.2,
+    fullTiltAt: 0.6,
+    downThreshold: 0.6,
+    restX: 96,
+    restY: 92,
+  },
   buttons: [
-    { action: 'left', label: '◀', anchor: 'bottom-left', x: 44, y: 52, size: 76, slideGroup: 'move' },
-    { action: 'right', label: '▶', anchor: 'bottom-left', x: 132, y: 52, size: 76, slideGroup: 'move' },
-    { action: 'jump', label: 'JUMP', anchor: 'bottom-right', x: 46, y: 50, size: 78 },
-    { action: 'attack', label: 'ATK', anchor: 'bottom-right', x: 136, y: 72, size: 68 },
-    { action: 'dodge', label: 'ROLL', anchor: 'bottom-right', x: 70, y: 138, size: 62 },
+    { action: 'jump', label: 'JUMP', x: 46, y: 50, size: 80 },
+    { action: 'attack', label: 'ATK', x: 138, y: 70, size: 70 },
+    { action: 'dodge', label: 'ROLL', x: 72, y: 142, size: 64 },
   ],
 };

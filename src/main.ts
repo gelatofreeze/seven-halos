@@ -39,7 +39,7 @@ if (document.fullscreenEnabled) {
     },
   });
 }
-const touch = new TouchControls(services.input, app, utilityButtons);
+const touch = new TouchControls(services.input, app, utilityButtons, () => services.debug.enabled);
 
 // ---- Browser hygiene: no scrolling, zooming or stuck inputs ------------------------------
 const block = (e: Event) => e.preventDefault();
@@ -61,7 +61,6 @@ document.addEventListener('visibilitychange', () => {
     sfx.resume();
   }
 });
-window.addEventListener('resize', () => requestAnimationFrame(() => touch.measure()));
 
 // Audio can only start from a user gesture (iOS).
 const unlock = () => sfx.unlock();

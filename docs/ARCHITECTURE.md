@@ -45,6 +45,9 @@ Devices ──► InputHub ──► InputFrame ──► Simulation.step() ─�
 ## Rendering resolution
 Logical height targets 270 px. Zoom is the integer number of *device* pixels per game pixel, picked so the height lands near 270 (range 216–360). Width follows the screen's aspect ratio (384–640 px), so the image is never stretched: an iPhone 14 in landscape renders 633×292 at 4×. Screens wider than 640 logical pixels are letterboxed. Concept art uses a 1448×1086 canvas; that is a reference size, not the game resolution.
 
+## Touch controls
+`TouchControls` is a DOM overlay. The left side of the screen is a floating joystick: wherever the thumb lands becomes the stick's centre, and the base follows if the thumb drags past the rim. It gives an analog horizontal axis (`InputHub.setAxis`) and a "down" hold. Action buttons sit on the right. A touch goes to the nearest button within 1.6× its radius, and button positions are read at touch time, so rotation can't leave stale hit areas. Each finger keeps its binding until it lifts, and bindings are checked against `TouchEvent.touches` on every event to recover from touchends that iOS drops. Layout and feel are tuned in `src/config/controls.ts`.
+
 ## Browser integration
 - `touch-action: none`, a blocking `touchmove` listener, `gesturestart`/`dblclick` prevention and a fixed body stop scrolling and zoom.
 - Blur and `visibilitychange` release all held inputs, pause the scene and suspend audio. The timestep is reset on return, so there is no catch-up spiral.

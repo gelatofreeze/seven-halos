@@ -139,6 +139,15 @@ describe('Player movement', () => {
     expect(p.state).toBe('idle');
   });
 
+  it('a partial joystick push walks at partial speed', () => {
+    const sim = flatSim();
+    const input = new ScriptedInput();
+    input.frame.moveX = 0.5;
+    run(sim, input, 30);
+    expect(sim.player.body.vx).toBeCloseTo(PLAYER_MOVEMENT.ground.maxSpeed * 0.5);
+    expect(sim.player.state).toBe('run');
+  });
+
   it('dodges in the held direction and faces it', () => {
     const sim = flatSim();
     const input = new ScriptedInput();

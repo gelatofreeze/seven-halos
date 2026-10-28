@@ -26,12 +26,12 @@ To play on a phone, open the dev server's Network URL on a phone on the same Wi-
 ## Controls
 | Action | Keyboard | Touch |
 |---|---|---|
-| Move | A/D or ←/→ | ◀ ▶ (slide between them) |
+| Move | A/D or ←/→ | Joystick: put a thumb anywhere on the left side of the screen |
 | Jump (hold for higher) | Space, K, W, ↑, Z | JUMP |
 | Attack | J, X | ATK |
 | Dodge roll | L, C, Shift | ROLL |
-| Drop through platform | ↓/S + Jump | – |
-| Debug overlay | ` or F3 | DBG |
+| Drop through platform | ↓/S + Jump | Joystick down + JUMP |
+| Debug overlay | ` or F3 | DBG (also shows a dot for each finger) |
 
 Add `?debug=1` to the URL to start with the hitbox/state overlay on. Use `?touch=1` or `?touch=0` to force the touch controls on or off.
 
