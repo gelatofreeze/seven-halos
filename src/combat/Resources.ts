@@ -36,6 +36,8 @@ export interface StaminaTuning {
   regenRate: number;
   /** Seconds after spending before regeneration resumes. */
   regenDelay: number;
+  /** Seconds before regeneration resumes when a spend empties the meter (exhaustion penalty). */
+  exhaustedRegenDelay: number;
   /** Regeneration multiplier while an action (attack, dodge) is in progress. */
   busyRegenMultiplier: number;
 }
@@ -62,7 +64,7 @@ export class Stamina {
 
   spend(cost: number): void {
     this.current = Math.max(0, this.current - cost);
-    this.delay = this.tuning.regenDelay;
+    this.delay = this.current <= 0 ? this.tuning.exhaustedRegenDelay : this.tuning.regenDelay;
   }
 
   update(dt: number, busy: boolean): void {

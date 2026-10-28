@@ -10,10 +10,10 @@ All timing is in 60 Hz simulation frames (`src/data/weapons.ts`). Each attack ha
 | Hollow Cleave (`sentinel.cleave`) | 40 | 6 | 42 | – | 34 | 40 | hyper-armour +30 during startup and active |
 
 ## Dodge roll (`src/config/movement.ts`)
-2 startup frames (vulnerable) → 13 invincible frames → 8 recovery frames, ~80 px of travel, 20 stamina. From frame 18 a buffered jump, attack or roll cancels the recovery. Rolls go in the held direction, or the facing direction when nothing is held. Rolling passes through enemies (no body push). Ground only for now (`allowInAir`).
+2 startup frames (vulnerable) → 13 invincible frames → 8 recovery frames, ~80 px of travel, 28 stamina (about 3–4 rolls from full). From frame 18 a buffered jump, attack or roll cancels the recovery. Rolls go in the held direction, or the facing direction when nothing is held. Rolling passes through enemies (no body push). Ground only for now (`allowInAir`).
 
 ## Stamina
-100 max, 48/s regeneration after a 0.55 s delay, no regeneration while attacking or rolling. Souls rule: an action can start whenever stamina is above zero, even if it costs more than what is left.
+100 max, 40/s regeneration after a 0.55 s delay, no regeneration while attacking or rolling. Emptying the meter applies a longer 1.1 s exhaustion delay. Souls rule: an action can start whenever stamina is above zero, even if it costs more than what is left. Jumps cost 8 but are never blocked by low stamina, so the player can't get stuck in a pit; they just drain the meter and delay regeneration.
 
 ## Hit pipeline (`CombatSystem.step`)
 1. Every combatant writes its active hitboxes into the pooled `HitDetection` sink.

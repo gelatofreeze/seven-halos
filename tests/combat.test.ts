@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calculateDamage } from '../src/combat/Damage';
 import { Stamina } from '../src/combat/Resources';
 import type { DamageResult } from '../src/combat/types';
+import { PLAYER_MOVEMENT } from '../src/config/movement';
 import { PLAYER_COMBAT } from '../src/config/player';
 import { getAttack } from '../src/data/weapons';
 import type { SimEvent } from '../src/world/SimEvents';
@@ -34,10 +35,50 @@ describe('Stamina', () => {
     s.spend(30);
     expect(s.current).toBe(0);
     expect(s.canSpend()).toBe(false);
-    s.update(PLAYER_COMBAT.stamina.regenDelay * 0.5, false);
+    // Emptying the meter applies the longer exhaustion delay.
+    s.update(PLAYER_COMBAT.stamina.regenDelay + 0.1, false);
     expect(s.current).toBe(0);
-    for (let i = 0; i < 120; i++) s.update(1 / 60, false);
+    for (let i = 0; i < 180; i++) s.update(1 / 60, false);
     expect(s.current).toBeGreaterThan(40);
+  });
+});
+
+describe('Stamina costs of movement', () => {
+  it('jumping costs stamina but is never blocked by an empty meter', () => {
+    const sim = flatSim();
+    const input = new ScriptedInput();
+    const p = sim.player;
+    run(sim, input, 2);
+    input.frame.jumpPressed = true;
+    run(sim, input, 1);
+    expect(p.state).toBe('jump');
+    expect(p.stamina.current).toBeCloseTo(PLAYER_COMBAT.stamina.max - PLAYER_MOVEMENT.jump.staminaCost, 0);
+
+    run(sim, input, 90);
+    p.stamina.spend(1000);
+    input.frame.jumpPressed = true;
+    run(sim, input, 1);
+    expect(p.state).toBe('jump');
+  });
+
+  it('chaining rolls from full stamina runs dry after a handful', () => {
+    const sim = flatSim();
+    const input = new ScriptedInput();
+    const p = sim.player;
+    run(sim, input, 2);
+    let rolls = 0;
+    let wasDodging = false;
+    // Mash roll every few frames for two seconds.
+    run(sim, input, 120, (i) => {
+      if (i % 4 === 0) input.frame.dodgePressed = true;
+      input.frame.moveX = i % 60 < 30 ? 1 : -1;
+      const dodging = p.state === 'dodge';
+      if (dodging && (!wasDodging || p.actionFrame === 0)) rolls++;
+      wasDodging = dodging;
+    });
+    expect(rolls).toBeGreaterThanOrEqual(3);
+    expect(rolls).toBeLessThanOrEqual(5);
+    expect(p.stamina.current).toBeLessThan(PLAYER_COMBAT.stamina.max * 0.5);
   });
 });
 

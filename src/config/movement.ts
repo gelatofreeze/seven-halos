@@ -38,6 +38,11 @@ export interface JumpTuning {
   coyoteTime: number;
   /** A jump pressed this long before landing still fires on landing, s. */
   bufferTime: number;
+  /**
+   * Stamina spent per jump. Jumping is never blocked by low stamina (that
+   * could trap the player in a pit); it just drains the meter and delays regen.
+   */
+  staminaCost: number;
 }
 
 export interface LandingTuning {
@@ -97,10 +102,11 @@ export const PLAYER_MOVEMENT: MovementTuning = {
     fastFallGravityMultiplier: 2.2,
     coyoteTime: 0.1,
     bufferTime: 0.13,
+    staminaCost: 8,
   },
   landing: { softDuration: 0.08, hardLandingSpeed: 415, hardDuration: 0.16, hardSpeedMultiplier: 0.45 },
   dodge: {
-    staminaCost: 20,
+    staminaCost: 28,
     startupFrames: 2,
     invulnerableFrames: 13,
     recoveryFrames: 8,
