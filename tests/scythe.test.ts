@@ -187,7 +187,7 @@ describe('Weapon switching', () => {
   it('refuses items that are not weapons or not owned', () => {
     const sim = flatSim();
     const dust = sim.profile.inventory.add('grave-dust', 2);
-    expect(sim.requestEquip(dust.uid)).toBe('invalid');
+    expect(sim.requestEquip(dust.uid)).toBe('incompatible');
     expect(sim.requestEquip(9999)).toBe('invalid');
   });
 });

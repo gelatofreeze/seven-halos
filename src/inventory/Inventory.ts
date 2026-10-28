@@ -6,7 +6,7 @@ export interface ItemInstance {
   uid: number;
   itemId: string;
   quantity: number;
-  /** Forge upgrade level (weapons). */
+  /** Upgrade tier (weapons). */
   upgradeLevel: number;
 }
 
@@ -64,6 +64,25 @@ export class Inventory {
 
   definitionOf(instance: ItemInstance): ItemDefinition {
     return getItem(instance.itemId);
+  }
+
+  /** Position of an instance in the backpack order, or -1. */
+  indexOf(uid: number): number {
+    return this.items.findIndex((i) => i.uid === uid);
+  }
+
+  /**
+   * Move an instance to `toIndex` in the backpack order (clamped). The order
+   * is the player's arrangement and is saved. Returns false if not owned.
+   */
+  move(uid: number, toIndex: number): boolean {
+    const from = this.indexOf(uid);
+    if (from < 0) return false;
+    const to = Math.max(0, Math.min(this.items.length - 1, Math.floor(toIndex)));
+    if (to === from) return true;
+    const [instance] = this.items.splice(from, 1);
+    this.items.splice(to, 0, instance!);
+    return true;
   }
 
   /** Replace contents from validated save data. */

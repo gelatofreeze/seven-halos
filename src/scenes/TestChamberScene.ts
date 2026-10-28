@@ -15,7 +15,7 @@ import { EnemyView } from '../render/views/EnemyView';
 import { PickupViews } from '../render/views/PickupView';
 import { DEV_TOOLS_ENABLED } from '../config/build';
 import { getItem } from '../data/items';
-import { InventoryPanel } from '../ui/InventoryPanel';
+import { PauseMenu } from '../ui/PauseMenu';
 import { RpgHud } from '../ui/RpgHud';
 import { Toasts } from '../ui/Toasts';
 import { parseLevel } from '../world/Level';
@@ -43,7 +43,7 @@ export class TestChamberScene extends Phaser.Scene {
   private pickupViews!: PickupViews;
   private rpgHud!: RpgHud;
   private toasts!: Toasts;
-  private inventory!: InventoryPanel;
+  private menu!: PauseMenu;
   private saveTimer = 0;
   private backdrop!: Backdrop;
   private levelRenderer!: LevelRenderer;
@@ -84,9 +84,11 @@ export class TestChamberScene extends Phaser.Scene {
     placeHud();
     services.viewport?.onChange(() => requestAnimationFrame(placeHud));
     this.toasts = new Toasts(app);
-    this.inventory = new InventoryPanel(app, this.sim, services.save, (open) => this.setMenuOpen(open));
-    services.onMenuToggle = () => this.inventory.toggle();
+    this.menu = new PauseMenu(app, this.sim, services.save, (open) => this.setMenuOpen(open));
+    services.onMenuToggle = () => this.menu.toggle();
     if (services.save.status === 'corrupt') this.toasts.show('Your save could not be read; a backup was kept and a new one started.', 'info', 5);
+    if (services.save.status === 'migrated')
+      this.toasts.show(services.save.migrationBackedUp ? 'Save updated: Forge Points are now Weapon XP (×10). Your old save was backed up.' : 'Save could not be backed up, so it was not updated; progress this session will not be saved.', 'info', 6);
     if (services.save.status === 'unsupported-version') this.toasts.show('This save is from a newer version; progress will not be saved.', 'info', 5);
     this.effects = new Effects(this);
     this.debug = new DebugOverlay(this, this.sim, services.debug);
@@ -110,7 +112,7 @@ export class TestChamberScene extends Phaser.Scene {
       this.game.events.off(Phaser.Core.Events.VISIBLE, this.onVisible, this);
       services.save.saveIfChanged();
       services.onMenuToggle = null;
-      this.inventory.destroy();
+      this.menu.destroy();
       this.rpgHud.destroy();
       this.toasts.destroy();
     });
@@ -134,10 +136,16 @@ export class TestChamberScene extends Phaser.Scene {
     this.timestep.reset();
   }
 
-  /** The inventory pauses the game and drops any held inputs so nothing leaks into combat. */
+  /**
+   * The menu pauses the game. Opening and closing both release held inputs and
+   * drop pending or buffered presses, so nothing leaks into combat either way.
+   */
   private setMenuOpen(open: boolean): void {
     this.menuOpen = open;
-    getServices(this).releaseInputs();
+    const services = getServices(this);
+    services.releaseInputs();
+    services.input.discardPendingPresses();
+    this.sim.discardQueuedInput();
     this.timestep.reset();
     this.rpgHud.invalidate();
   }
@@ -230,7 +238,7 @@ export class TestChamberScene extends Phaser.Scene {
         break;
       case 'reward':
         sfx.play('reward');
-        this.toasts.show(`${e.enemyName} defeated  ·  +${e.experience} XP  ·  +${e.gold} Gold  ·  +${e.forgePoints} Forge`, 'reward');
+        this.toasts.show(`${e.enemyName} defeated  ·  +${e.experience} XP  ·  +${e.gold} Gold`, 'reward');
         break;
       case 'lootDrop':
         if (e.rarity === 'rare' || e.rarity === 'legendary') this.toasts.show(`★ ${getItem(e.itemId).name} dropped!`, 'rare', 3.5);
@@ -240,7 +248,7 @@ export class TestChamberScene extends Phaser.Scene {
         const rare = e.rarity === 'rare' || e.rarity === 'legendary';
         sfx.play(rare ? 'rarePickup' : 'pickup');
         this.toasts.show(
-          `Obtained ${item.name}${e.quantity > 1 ? ` × ${e.quantity}` : ''}${item.kind === 'weapon' ? '  —  open BAG to equip' : ''}`,
+          `Obtained ${item.name}${e.quantity > 1 ? ` × ${e.quantity}` : ''}${item.kind === 'weapon' ? '  —  open MENU to equip' : ''}`,
           rare ? 'rare' : 'loot',
           item.kind === 'weapon' ? 4 : 2.4,
         );

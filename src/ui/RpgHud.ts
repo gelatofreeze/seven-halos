@@ -3,7 +3,8 @@ import type { PlayerProfile } from '../rpg/Profile';
 
 /**
  * Unobtrusive DOM read-out under the health/stamina bars: equipped weapon and
- * the three currencies. DOM text stays crisp at any pixel scale.
+ * Character XP and Gold. Weapon XP is deliberately not shown here: it lives in
+ * the pause menu, next to the upgrades it buys. DOM text stays crisp at any pixel scale.
  */
 export class RpgHud {
   private readonly root: HTMLElement;
@@ -33,7 +34,7 @@ export class RpgHud {
     const name = instance ? getItem(instance.itemId).name : '—';
     this.weapon.textContent = `▸ ${name}${instance && instance.upgradeLevel > 0 ? ` +${instance.upgradeLevel}` : ''}`;
     const w = p.wallet;
-    this.currencies.innerHTML = `<span class="cur-xp">XP ${w.experience}</span><span class="cur-gold">Gold ${w.gold}</span><span class="cur-fp">Forge ${w.forgePoints}</span>`;
+    this.currencies.innerHTML = `<span class="cur-xp">XP ${w.experience}</span><span class="cur-gold">Gold ${w.gold}</span>`;
   }
 
   /**

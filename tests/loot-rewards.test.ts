@@ -38,12 +38,12 @@ function killFirstEnemy(sim: Simulation, input: ScriptedInput): SimEvent[] {
 }
 
 describe('Currency rewards', () => {
-  it('grants the data-defined XP, gold and Forge Points exactly once per kill', () => {
+  it('grants the data-defined Character XP, Gold and Weapon XP exactly once per kill', () => {
     const sim = flatSim({ enemyCol: 10, enemy: 'R', width: 50 });
     const input = new ScriptedInput();
     const events = killFirstEnemy(sim, input);
     const w = sim.profile.wallet;
-    expect([w.experience, w.gold, w.forgePoints]).toEqual([REAPER.rewards.experience, REAPER.rewards.gold, REAPER.rewards.forgePoints]);
+    expect([w.experience, w.gold, w.weaponXp]).toEqual([REAPER.rewards.experience, REAPER.rewards.gold, REAPER.rewards.weaponXp]);
     expect(events.filter((e) => e.type === 'reward')).toHaveLength(1);
     // Lingering on the corpse, extra hits and the respawn grant nothing more.
     run(sim, input, 60 * (REAPER.respawnDelay! + 1), (i) => {
@@ -198,7 +198,7 @@ describe('Persistence', () => {
     const profile = new PlayerProfile();
     const save = new SaveManager(storage, profile);
     expect(save.load()).toBe('new');
-    profile.wallet.add({ experience: 120, gold: 33, forgePoints: 4 });
+    profile.wallet.add({ experience: 120, gold: 33, weaponXp: 40 });
     const scythe = profile.inventory.add('mourning-crescent');
     profile.inventory.add('grave-dust', 3);
     profile.equippedWeaponUid = scythe.uid;
@@ -208,7 +208,7 @@ describe('Persistence', () => {
 
     const reloaded = new PlayerProfile();
     expect(new SaveManager(storage, reloaded).load()).toBe('loaded');
-    expect([reloaded.wallet.experience, reloaded.wallet.gold, reloaded.wallet.forgePoints]).toEqual([120, 33, 4]);
+    expect([reloaded.wallet.experience, reloaded.wallet.gold, reloaded.wallet.weaponXp]).toEqual([120, 33, 40]);
     expect(reloaded.inventory.owns('mourning-crescent')).toBe(true);
     expect(reloaded.inventory.count('grave-dust')).toBe(3);
     expect(reloaded.equippedWeaponId()).toBe('mourning-crescent');
@@ -250,7 +250,7 @@ describe('Persistence', () => {
     const profile = new PlayerProfile();
     const save = new SaveManager(storage, profile);
     expect(save.load()).toBe('unsupported-version');
-    profile.wallet.add({ experience: 1, gold: 1, forgePoints: 1 });
+    profile.wallet.add({ experience: 1, gold: 1, weaponXp: 1 });
     profile.touch();
     expect(save.saveIfChanged()).toBe(false);
     expect(storage.load(SAVE_KEY)).toBe(future);
@@ -275,8 +275,8 @@ describe('Persistence', () => {
       }),
       profile,
     );
-    expect(status).toBe('loaded');
-    expect([profile.wallet.experience, profile.wallet.gold, profile.wallet.forgePoints]).toEqual([0, 12, 0]);
+    expect(status).toBe('migrated');
+    expect([profile.wallet.experience, profile.wallet.gold, profile.wallet.weaponXp]).toEqual([0, 12, 0]);
     expect(profile.inventory.all.map((i) => i.itemId).sort()).toEqual(['grave-dust', 'mourning-crescent']);
     expect(profile.inventory.find(7)!.quantity).toBe(1);
     expect(profile.inventory.count('grave-dust')).toBe(1);
@@ -293,7 +293,7 @@ describe('Persistence', () => {
     const storage = new MemoryStorage();
     const profile = new PlayerProfile();
     const save = new SaveManager(storage, profile);
-    profile.wallet.add({ experience: 5, gold: 5, forgePoints: 5 });
+    profile.wallet.add({ experience: 5, gold: 5, weaponXp: 5 });
     profile.inventory.add('mourning-crescent');
     profile.touch();
     save.saveIfChanged();

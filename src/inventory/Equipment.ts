@@ -7,7 +7,7 @@ import { getAttack, getWeapon, type WeaponDefinition } from '../data/weapons';
  */
 export class Equipment {
   weapon: WeaponDefinition;
-  /** Forge upgrade level of the equipped weapon instance. */
+  /** Upgrade tier of the equipped weapon instance. */
   upgradeLevel = 0;
 
   constructor(weaponId: string, upgradeLevel = 0) {

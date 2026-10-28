@@ -1,22 +1,33 @@
 import { getItem } from '../data/items';
 import { Inventory, type ItemInstance } from '../inventory/Inventory';
+import { Loadout } from './Loadout';
 import { Wallet } from './Wallet';
 
 export const STARTING_WEAPON = 'pilgrim-sword';
 
 /**
  * Everything about the player that persists between sessions: currencies,
- * owned items and the equipped weapon. Combat state is never part of it.
- * `revision` increases on every change so persistence can save lazily.
+ * owned items (in backpack order) and the equipment loadout. Combat state is
+ * never part of it. `revision` increases on every change so persistence can
+ * save lazily.
  */
 export class PlayerProfile {
   readonly wallet = new Wallet();
   readonly inventory = new Inventory();
-  equippedWeaponUid = 0;
+  readonly loadout = new Loadout();
   revision = 0;
 
   constructor() {
     this.ensureStarterWeapon();
+  }
+
+  /** The main-hand weapon instance's uid. */
+  get equippedWeaponUid(): number {
+    return this.loadout.get('mainHand');
+  }
+
+  set equippedWeaponUid(uid: number) {
+    this.loadout.set('mainHand', uid);
   }
 
   /** Guarantee the player always owns and wields at least the starting weapon. */
@@ -41,9 +52,9 @@ export class PlayerProfile {
   }
 
   reset(): void {
-    this.wallet.set({ experience: 0, gold: 0, forgePoints: 0 });
+    this.wallet.set({ experience: 0, gold: 0, weaponXp: 0 });
     this.inventory.clear();
-    this.equippedWeaponUid = 0;
+    this.loadout.clear();
     this.ensureStarterWeapon();
     this.touch();
   }

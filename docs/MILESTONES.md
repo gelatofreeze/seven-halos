@@ -27,7 +27,7 @@
 - [x] Mourning Crescent scythe: 3-hit sweeping light combo, heavy and charged heavy, riposte, own sheet and trails
 - [x] Barrow Reaper: spacing AI, low sweep (jumpable) and committed lunge, retreat hop, fragile posture
 - [x] Generic data-driven `Enemy` (Sentinel and Reaper are data)
-- [x] XP / Gold / Forge Point rewards, exactly once per kill, with feedback
+- [x] XP / Gold / Forge Point rewards (Forge Points became Weapon XP in 2B.1), exactly once per kill, with feedback
 - [x] Seeded, data-driven drop tables (1% scythe), world pickups
 - [x] Inventory (definitions vs instances), equipping via BAG panel, guarded weapon switching
 - [x] Versioned browser saves through a storage abstraction; corrupt/newer-save handling
@@ -36,11 +36,23 @@
 - [x] Naming screen and third-party record (docs/NAMING.md, docs/THIRD_PARTY.md)
 - [ ] Hand playtest on iPhone; tune values listed in the PR
 
+### Update 2B.1 + 2B.2 — Balance, death fix, Weapon XP, pause menu (done, pending device playtest)
+- [x] Mourning Crescent rebalanced against a reproducible benchmark, with guard-rail tests
+- [x] Enemy death plays once and holds, configurable fade/remains, no slide, no posthumous hits
+- [x] Weapon XP replaces Forge Points; per-instance upgrade tiers with an atomic upgrade service
+- [x] Save v2 with a tested v1 → v2 migration (backup first, runs once, protects newer saves)
+- [x] Data-driven equipment slots (main hand functional; off hand, armour, rings, tool placeholders)
+- [x] Grid pause menu: equipment, backpack, details with comparison, progression and upgrades
+- [x] Pointer drag and drop (mouse, touch, pen), tap-to-equip fallback, keyboard, adaptive layouts
+- [x] Menu input isolation: held, pending and buffered presses are dropped on open and close
+- [x] Content validation (references, animation mappings, probabilities, slots, duplicate ids) and docs/CONTENT.md
+- [ ] Hand playtest on iPhone (menu drag, layout, upgrade flow)
+
 ### Next
-Spending Forge Points (weapon upgrades) and Experience (levelling) at a shrine, running and jumping attacks, a ranged enemy, player poise/armour, shields as equipment.
+Spending Character XP (levelling) at a shrine, a blacksmith reusing the upgrade service, running and jumping attacks, a ranged enemy, player poise/armour, shields as equipment.
 
 ## Phase 3 — RPG layer
-Classes and starting kits, attribute levelling with Experience, Gold vendors, Forge Point weapon upgrades, randomized loot tables with rare weapon drops, inventory/equipment UI, saving.
+Classes and starting kits, attribute levelling with Experience, Gold vendors, Weapon XP upgrades (done in 2B.1), randomized loot tables with rare weapon drops, armour and accessories in the existing slots.
 
 ## Phase 4 — World
 Shrine checkpoints with rest/respawn, interconnected rooms and level streaming, a Tiled (or in-house) level pipeline, secrets and shortcuts, the first kingdom's castle.

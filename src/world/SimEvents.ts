@@ -24,10 +24,11 @@ export type SimEvent =
   | { type: 'evade'; x: number; y: number }
   | { type: 'death'; faction: Faction; x: number; y: number }
   | { type: 'respawn'; faction: Faction; x: number; y: number }
-  | { type: 'reward'; enemyName: string; x: number; y: number; experience: number; gold: number; forgePoints: number }
+  | { type: 'reward'; enemyName: string; x: number; y: number; experience: number; gold: number; weaponXp: number }
   | { type: 'lootDrop'; itemId: string; rarity: Rarity; x: number; y: number }
   | { type: 'pickup'; itemId: string; quantity: number; rarity: Rarity; x: number; y: number }
-  | { type: 'equip'; weaponId: string };
+  | { type: 'equip'; weaponId: string }
+  | { type: 'upgrade'; uid: number; itemId: string; level: number; cost: number };
 
 export class SimEventQueue {
   readonly items: SimEvent[] = [];

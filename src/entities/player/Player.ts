@@ -93,6 +93,11 @@ export class Player implements Combatant {
     this.stats = stats;
   }
 
+  /** Forget buffered presses (e.g. across a menu), so nothing fires on its own afterwards. */
+  clearBufferedActions(): void {
+    this.jumpBuffer = this.attackBuffer = this.heavyBuffer = this.dodgeBuffer = this.parryBuffer = 0;
+  }
+
   /** Equipment may only change in neutral states, never mid-action. */
   canChangeEquipment(): boolean {
     const s = this.fsm.current;
@@ -390,7 +395,7 @@ export class Player implements Combatant {
     this.facing = 1;
     this.jumping = false;
     this.postHitInvulnerability = 0;
-    this.jumpBuffer = this.attackBuffer = this.heavyBuffer = this.dodgeBuffer = this.parryBuffer = 0;
+    this.clearBufferedActions();
     this.blockStunFrames = 0;
     this.fsm.transition('idle', true);
     this.events.push({ type: 'respawn', faction: 'player', x: this.spawnX, y: this.spawnY });

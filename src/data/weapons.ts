@@ -320,7 +320,7 @@ export interface WeaponDefinition {
     heavy: string;
     riposte: string;
   };
-  /** Forge upgrades (spent with Forge Points in a later update): outgoing damage +`damagePerLevel` per level. */
+  /** Upgrade tiers bought with Weapon XP (see config/progression.ts): outgoing damage +`damagePerLevel` per tier. */
   upgrade: { damagePerLevel: number; maxLevel: number };
 }
 

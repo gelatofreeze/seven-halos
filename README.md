@@ -35,7 +35,7 @@ To play on a phone, open the dev server's Network URL on a phone on the same Wi-
 | Guard (hold) | Shift, O | GUARD |
 | Parry | P, F | PARRY |
 | Drop through platform | ↓/S + Jump | Joystick down + JUMP |
-| Inventory / equipment (pauses the game) | I, Tab (Esc closes) | BAG (top right) |
+| Pause menu: equipment, backpack, upgrades (pauses the game) | I, Tab (Esc or I closes; arrows move, Enter selects) | MENU (top right) |
 | Pick up items | walk over them | walk over them |
 | Debug overlay | ` or F3 | DBG (also shows a dot for each finger) |
 
@@ -64,17 +64,21 @@ The **Barrow Reaper** is faster and keeps its distance. It has two attacks:
 It's fragile and breaks posture easily.
 
 ## Rewards, loot and equipment
-- Every kill grants **Experience**, **Gold** and **Forge Points** (shown under the health bars). Sentinel: 40 / 12 / 1. Reaper: 65 / 20 / 2.
+- Every kill grants **Character XP** and **Gold** (shown under the health bars) and **Weapon XP** (shown only in the menu). Sentinel: 40 / 12 / 10 WXP. Reaper: 65 / 20 / 20 WXP.
 - Enemies roll a drop table once per death. Drops land as glowing pickups and stay until you walk over them:
-  - **Grave Dust** is a stacking material for future forge upgrades.
+  - **Grave Dust** is a stacking crafting material (used in a later update).
   - The Reaper has a **1% chance** to drop its scythe, the **Mourning Crescent**. Rare drops get a gold beam and a banner.
-- Open **BAG** to equip the Mourning Crescent or switch back to the Pilgrim's Sword. Weapons can't be changed mid-action.
-- Progress (currencies, owned items, equipped weapon) saves automatically in the browser and survives reloads.
+- **MENU** pauses the game. It has four areas: **Equipment** (nine slots, only the main hand works so far), **Backpack** (a grid of everything you own), **Item** details (stats compared with your equipped weapon) and **Progression** (currencies and the next upgrade).
+  - Equip by dragging an item onto a glowing slot. On a phone, press and hold (or swipe sideways) to pick it up. Or tap the item, then tap the glowing slot, or use the Equip button.
+  - Drag items within the backpack to rearrange them; the order is saved.
+  - **Upgrade** spends Weapon XP to raise the selected weapon one tier (+10% damage per tier for the sword, +9% for the scythe).
+  - Weapons can't be changed mid-action. Nothing you pressed before or during the menu fires when you close it.
+- Progress (currencies, items and their order, tiers, equipment) saves automatically in the browser. Saves from update 2B are upgraded automatically: Forge Points become Weapon XP at ×10, and the old save is backed up first.
 
 ### Testing the scythe without farming (test builds only)
 The GitHub Pages preview and `npm run dev` include development tools. A plain `npm run build` (the basis for commercial releases) compiles them out, and `npm run check` verifies that.
 - The **armoury altar** at the far east end holds a Mourning Crescent if you don't own one yet. Walk over it.
-- **BAG → Development tools** offers: Grant Mourning Crescent, Drop scythe in front, + Currencies, Reset save.
+- **MENU → Progression → Development tools** offers: Grant Mourning Crescent, Drop scythe in front, + Currencies (500 XP, 200 Gold, 300 WXP), Reset save.
 
 ## Phone preview via GitHub Pages
 `.github/workflows/deploy-pages.yml` runs `npm run check`, then publishes a **test build** (`npm run build:test`, development tools on) on every push to `main`. It can also be run manually.

@@ -83,7 +83,7 @@ export const WEAPON_SHEETS: Record<string, string> = {
   'mourning-crescent': PLAYER_SCYTHE_SHEET.key,
 };
 
-/** Timed player animations; registered once per player sheet as `<sheet>.<name>`. */
+/** Timed player animations, shared by every player sheet; frames are picked from simulation state time (`animFrame`). */
 export const PLAYER_ANIMS: readonly AnimSpec[] = [
   { key: 'idle', frames: PLAYER_FRAMES.idle, fps: 5, loop: true },
   { key: 'run', frames: PLAYER_FRAMES.run, fps: 14, loop: true },

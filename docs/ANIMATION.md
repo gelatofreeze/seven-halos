@@ -8,6 +8,8 @@ The contract lives in `src/render/animation/specs.ts`. Final art must match it, 
 - Every sheet is anchored at the **feet**: horizontally centred, at row `footY`. Gameplay positions are foot positions.
 - Characters are drawn facing **right**. Facing left is a horizontal flip.
 - 60 Hz simulation. Logic-driven animations (attacks, roll) pick frames from action progress, so frame counts can change without touching gameplay.
+- Every other timed animation (idle, run, hurt, death...) picks its frame from the logic state's elapsed time with `animFrame(spec, fsm.time)`: looping specs wrap, one-shots hold their last frame. Views never call Phaser's `anims.play`, which restarts a finished one-shot animation when it is called every frame.
+- Enemy death presentation is data on the visual profile (`death: { fadeDelay, fadeDuration, remains, remainsAlpha }`, see `deathPose`). `render/validateVisuals.ts` checks that every mapping exists and every frame index fits its sheet.
 
 ## Player — `player`, 64×48 frames, feet at (32, 44)
 Collision/hurtbox is 12×26 px. Extra frame width leaves room for sword swings.
