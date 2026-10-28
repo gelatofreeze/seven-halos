@@ -1,117 +1,104 @@
 import Phaser from 'phaser';
 import { TILE, type LevelData } from '../../world/Level';
 import type { WorldProgress } from '../../world/WorldProgress';
+import { GROUND_OFFSET, TILESET } from '../textures/environmentArt';
 import { TEX } from '../textures/registerTextures';
-import { TILESET } from '../textures/environmentArt';
-
-export interface LightSource {
-  image: Phaser.GameObjects.Image;
-  baseAlpha: number;
-  baseScale: number;
-  phase: number;
-  flicker: number;
-}
+import { LightRig, type LightHandle } from './lighting';
+import { LAYER_DEPTH, LAYER_TINT, PROP_VISUALS } from './props';
 
 interface ShrineView {
   id: string;
   image: Phaser.GameObjects.Image;
-  lights: LightSource[];
+  lights: LightHandle[];
 }
 
 interface CacheView {
   id: string;
   image: Phaser.GameObjects.Image;
-  light: LightSource;
+  light: LightHandle;
 }
 
 /**
- * Builds the tilemap, props, world objects (shrines, caches, doorways) and
- * their light sources for a level. Objects reflect saved progress: an
- * unlit shrine is dim until activated; an opened cache stays open.
+ * Builds a level's look, in fixed depth bands (back to front): far and back
+ * decoration, mid props, the tilemap (0), light spill and flames (1-2),
+ * characters (8-10), front accents. Props come from `PROP_VISUALS`, lights
+ * from `LightRig` presets, so regions only supply data. World objects show
+ * saved progress: an unlit shrine is dim until activated; an opened cache
+ * stays open.
  */
 export class LevelRenderer {
-  readonly lights: LightSource[] = [];
-  private time = 0;
+  readonly rig: LightRig;
   private readonly shrines: ShrineView[] = [];
   private readonly caches: CacheView[] = [];
 
   constructor(
-    private readonly scene: Phaser.Scene,
+    scene: Phaser.Scene,
     level: LevelData,
     private readonly progress: WorldProgress | null = null,
   ) {
+    this.rig = new LightRig(scene);
+    const ground = GROUND_OFFSET[level.environment.ground ?? 'stone'];
     const data = level.tiles.map((row, r) =>
       row.map((kind, c) => {
         if (kind === TILE.empty) return -1;
-        if (kind === TILE.oneWay) return TILESET.oneWay;
+        const masonry = level.masonry[r]?.[c] ?? false;
+        const base = masonry ? GROUND_OFFSET.stone : ground;
+        if (kind === TILE.oneWay) return base + (masonry ? TILESET.slab : TILESET.oneWay);
         const above = level.tiles[r - 1]?.[c] ?? TILE.solid;
-        if (above !== TILE.solid) return TILESET.top;
+        if (above !== TILE.solid) return base + TILESET.top;
         const left = row[c - 1] ?? TILE.solid;
         const right = row[c + 1] ?? TILE.solid;
-        if (left !== TILE.solid || right !== TILE.solid) return TILESET.wall;
-        return (c * 7 + r * 13) % 5 === 0 ? TILESET.innerB : TILESET.innerA;
+        if (left !== TILE.solid || right !== TILE.solid) return base + TILESET.wall;
+        return base + ((c * 7 + r * 13) % 5 === 0 ? TILESET.innerB : TILESET.innerA);
       }),
     );
     const map = scene.make.tilemap({ data, tileWidth: level.tileSize, tileHeight: level.tileSize });
     const tileset = map.addTilesetImage(TEX.tiles, TEX.tiles, level.tileSize, level.tileSize, 0, 0);
     if (tileset) map.createLayer(0, tileset, 0, 0)?.setDepth(0);
 
+    // Props in authoring order; Phaser keeps insertion order within equal depths.
     for (const prop of level.props) {
-      if (prop.kind === 'shrine') {
-        scene.add.image(prop.x, prop.y, TEX.shrine).setOrigin(0.5, 1).setDepth(-5);
-        this.addLight(prop.x, prop.y - 40, 0xe8c77a, 0.35, 1.6, 0.05);
-        this.addLight(prop.x, prop.y - 22, 0x9fb6ff, 0.18, 3.2, 0.02);
-      } else if (prop.kind === 'brazier') {
-        scene.add.image(prop.x, prop.y, TEX.brazier).setOrigin(0.5, 1).setDepth(-4);
-        this.addLight(prop.x, prop.y - 19, 0xff9a40, 0.55, 1.5, 0.18);
-        this.addLight(prop.x, prop.y - 16, 0xff7a30, 0.16, 4.5, 0.08);
+      const v = PROP_VISUALS[prop.kind];
+      const image = scene.add
+        .image(prop.x, prop.y, v.texture)
+        .setOrigin(0.5, 1)
+        .setDepth(v.depth ?? LAYER_DEPTH[prop.layer])
+        .setFlipX(prop.flip)
+        .setTint(LAYER_TINT[prop.layer]);
+      if (v.alpha !== undefined) image.setAlpha(v.alpha);
+      if (v.scale !== undefined) image.setScale(v.scale);
+      if (v.additive) image.setBlendMode(Phaser.BlendModes.ADD);
+      const mirror = prop.flip ? -1 : 1;
+      for (const l of v.lights ?? []) this.rig.add(l.name, prop.x + l.dx * mirror, prop.y + l.dy, l.flameDy !== undefined ? prop.y + l.flameDy : undefined);
+      if (v.shaft) {
+        // Dust drifting inside the shaft only.
+        const w = image.width * 0.6;
         scene.add
-          .particles(prop.x, prop.y - 20, TEX.ember, {
-            lifespan: { min: 600, max: 1300 },
-            speedY: { min: -34, max: -14 },
-            speedX: { min: -6, max: 6 },
-            frequency: 160,
-            quantity: 1,
-            alpha: { start: 1, end: 0 },
+          .particles(0, 0, TEX.mote, {
+            x: { min: prop.x - w / 2, max: prop.x + w / 2 },
+            y: { min: prop.y - image.height, max: prop.y - 8 },
+            lifespan: { min: 3000, max: 6000 },
+            speedX: { min: -3, max: 3 },
+            speedY: { min: 1, max: 5 },
+            frequency: 260,
+            maxAliveParticles: 18,
+            tint: [0xfff2d0, 0xffffff],
+            alpha: { onUpdate: (_p, _k, t) => Math.sin(t * Math.PI) * 0.8, onEmit: () => 0 },
             blendMode: Phaser.BlendModes.ADD,
           })
-          .setDepth(-3);
-      } else if (prop.kind === 'altar') {
-        scene.add.image(prop.x, prop.y, TEX.altar).setOrigin(0.5, 1).setDepth(-4);
-        this.addLight(prop.x, prop.y - 12, 0x9fe8ff, 0.3, 1.8, 0.06);
-      } else if (prop.kind === 'tree') {
-        scene.add.image(prop.x, prop.y + 2, TEX.tree).setOrigin(0.5, 1).setDepth(-6);
-      } else if (prop.kind === 'bush') {
-        scene.add.image(prop.x, prop.y + 1, TEX.bush).setOrigin(0.5, 1).setDepth(4);
-      } else if (prop.kind === 'ruin') {
-        scene.add.image(prop.x, prop.y, TEX.ruin).setOrigin(0.5, 1).setDepth(-6);
-      } else if (prop.kind === 'plinth') {
-        scene.add.image(prop.x, prop.y, TEX.plinth).setOrigin(0.5, 1).setDepth(-4);
-      } else if (prop.kind === 'sanctuary') {
-        scene.add.image(prop.x, prop.y, TEX.sanctuary).setOrigin(0.5, 1).setDepth(-20);
-        this.addLight(prop.x, prop.y - 70, 0xffd9a0, 0.22, 7, 0.02);
-      } else if (prop.kind === 'gate') {
-        scene.add.image(prop.x, prop.y, TEX.gate).setOrigin(0.5, 1).setDepth(-4);
-        this.addLight(prop.x, prop.y - 36, 0xc8b8ff, 0.18, 2.6, 0.04);
-      } else {
-        scene.add.image(prop.x, prop.y, TEX.lore).setOrigin(0.5, 1).setDepth(-4);
-        this.addLight(prop.x, prop.y - 8, 0x9fe8ff, 0.4, 1.2, 0.1);
+          .setDepth(7.5);
       }
     }
 
     for (const o of level.objects) {
       if (o.kind === 'checkpoint') {
         const image = scene.add.image(o.x, o.y, TEX.shrine).setOrigin(0.5, 1).setDepth(-5);
-        const lights = [this.addLight(o.x, o.y - 40, 0xe8c77a, 0.35, 1.6, 0.05), this.addLight(o.x, o.y - 22, 0x9fb6ff, 0.18, 3.2, 0.02)];
-        this.shrines.push({ id: o.id, image, lights });
+        this.shrines.push({ id: o.id, image, lights: [this.rig.add('shrine', o.x, o.y - 40)] });
       } else if (o.kind === 'cache') {
         const image = scene.add.image(o.x, o.y, TEX.cacheClosed).setOrigin(0.5, 1).setDepth(-3);
-        this.caches.push({ id: o.id, image, light: this.addLight(o.x, o.y - 8, 0xffd27a, 0.35, 1.1, 0.12) });
-      } else {
-        // A doorway: a faint column of light so the way on is visible.
-        const z = o.zone;
-        this.addLight(z.x + z.w / 2, z.y + z.h / 2, 0xc8e0ff, 0.16, Math.max(z.h, z.w) / 28, 0.04);
+        this.caches.push({ id: o.id, image, light: this.rig.add('treasure', o.x, o.y - 8) });
       }
+      // Exits are marked by the region's own decoration (waymarkers, arches), not a generic glow.
     }
     this.refreshObjects();
   }
@@ -121,29 +108,17 @@ export class LevelRenderer {
     for (const s of this.shrines) {
       const active = this.progress?.isActive(s.id) ?? true;
       s.image.setTint(active ? 0xffffff : 0x8a86a0);
-      s.lights.forEach((l, i) => (l.baseAlpha = active ? (i === 0 ? 0.5 : 0.24) : 0.04));
+      for (const l of s.lights) this.rig.setLevel(l, active ? 1 : 0.12);
     }
     for (const c of this.caches) {
       const opened = this.progress?.hasFlag(c.id) ?? false;
       c.image.setTexture(opened ? TEX.cacheOpen : TEX.cacheClosed);
-      c.light.baseAlpha = opened ? 0 : 0.35;
+      this.rig.setLevel(c.light, opened ? 0 : 1);
     }
   }
 
-  private addLight(x: number, y: number, tint: number, alpha: number, scale: number, flicker: number): LightSource {
-    const image = this.scene.add.image(x, y, TEX.glow).setTint(tint).setAlpha(alpha).setScale(scale).setBlendMode(Phaser.BlendModes.ADD).setDepth(-2);
-    const light = { image, baseAlpha: alpha, baseScale: scale, phase: x * 0.13, flicker };
-    this.lights.push(light);
-    return light;
-  }
-
-  /** Purely cosmetic flicker, independent of the simulation. */
+  /** Purely cosmetic flicker and flame animation, independent of the simulation. */
   update(dt: number): void {
-    this.time += dt;
-    for (const l of this.lights) {
-      const n = Math.sin(this.time * 9 + l.phase) * 0.5 + Math.sin(this.time * 23 + l.phase * 2) * 0.3;
-      l.image.setAlpha(l.baseAlpha * (1 + n * l.flicker * 2));
-      l.image.setScale(l.baseScale * (1 + n * l.flicker * 0.3));
-    }
+    this.rig.update(dt);
   }
 }

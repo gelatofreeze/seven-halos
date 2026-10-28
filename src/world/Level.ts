@@ -5,8 +5,58 @@ import type { Solid } from '../physics/CollisionWorld';
 export const TILE = { empty: 0, solid: 1, oneWay: 2 } as const;
 export type TileKind = (typeof TILE)[keyof typeof TILE];
 
-/** Decorative props (no gameplay). */
-export type PropKind = 'shrine' | 'brazier' | 'lore' | 'altar' | 'tree' | 'bush' | 'ruin' | 'plinth' | 'sanctuary' | 'gate';
+/** Decorative props (no gameplay). Textures and lights live in render/environment/props.ts. */
+export type PropKind =
+  | 'shrine'
+  | 'brazier'
+  | 'torch'
+  | 'lore'
+  | 'altar'
+  | 'tree'
+  | 'ancientTree'
+  | 'bush'
+  | 'flowers'
+  | 'ruin'
+  | 'fallenColumn'
+  | 'colonnade'
+  | 'plinth'
+  | 'sanctuaryWall'
+  | 'sanctuaryFrame'
+  | 'sanctuaryIvy'
+  | 'gable'
+  | 'halo'
+  | 'doorArch'
+  | 'lightShaft'
+  | 'waymarker'
+  | 'bridgeRuin'
+  | 'stream'
+  | 'shrineArch'
+  | 'gate';
+
+/**
+ * Draw layers for decoration, back to front. Gameplay never reads them.
+ * far: distant architecture · back: walls and frames behind the playfield ·
+ * mid: props at the playfield (default) · front: low foreground accents.
+ */
+export type DecorLayer = 'far' | 'back' | 'mid' | 'front';
+
+/**
+ * Decoration placed relative to a named point, in pixels, instead of on a
+ * tile marker. This is how a backdrop and the object it frames share one
+ * exact centre (the sanctuary's hall, window and shrine), and how symmetric
+ * pairs are authored once (`mirror`).
+ */
+export interface DecorPlacement {
+  prop: PropKind;
+  /** An anchor or world-object id in this level, or a tile `{ col, row }` (the tile's bottom centre). */
+  at: string | { col: number; row: number };
+  /** Offset from `at`, px (+x right, +y down). */
+  dx?: number;
+  dy?: number;
+  /** Also place a mirrored copy at -dx (a symmetric pair around `at`). */
+  mirror?: boolean;
+  layer?: DecorLayer;
+}
 
 /** A one-time reward, e.g. a treasure cache. Items must exist in data/items.ts. */
 export interface CacheReward {
@@ -50,6 +100,15 @@ export const DEFAULT_MARKERS: Readonly<Record<string, MarkerDef>> = {
 export interface EnvironmentConfig {
   /** Backdrop palette: the original moonlit ruins, or a forest variant. */
   backdrop?: 'ruins' | 'forest' | 'sanctuary';
+  /** What `#` and `=` look like: worked stone, or earth with roots and branches. `%` and `-` are always masonry. */
+  ground?: 'stone' | 'earth';
+  /** Fireflies drifting low over the ground (forests). */
+  fireflies?: number;
+  /**
+   * A distant landmark in the parallax backdrop (behind the far tree line),
+   * seen most clearly when the camera is near world x `x`: where the road leads.
+   */
+  landmark?: { kind: 'castle'; x: number };
   /** Tint of the drifting motes. */
   motes?: readonly number[];
   moteDensity?: number;
@@ -60,13 +119,15 @@ export interface LevelDefinition {
   name: string;
   tileSize: number;
   /**
-   * ASCII rows, top to bottom. `#` solid stone, `=` one-way platform, `.` or
-   * space empty; any other character is looked up in `markers` (then in
-   * `DEFAULT_MARKERS`). Markers sit on the tile the object stands in (feet at
+   * ASCII rows, top to bottom. `#` solid ground, `=` one-way platform, `%`
+   * solid masonry, `-` one-way masonry slab, `.` or space empty; any other
+   * character is looked up in `markers` (then in `DEFAULT_MARKERS`). Markers sit on the tile the object stands in (feet at
    * the tile's bottom).
    */
   rows: readonly string[];
   markers?: Readonly<Record<string, MarkerDef>>;
+  /** Decoration placed by anchor and offset (see `DecorPlacement`). */
+  decor?: readonly DecorPlacement[];
   environment?: EnvironmentConfig;
   /**
    * How defeated ordinary enemies come back: `rest` (stay down until the
@@ -122,6 +183,16 @@ export interface ExitObject {
 
 export type WorldObject = CheckpointObject | CacheObject | ExitObject;
 
+export interface Prop {
+  kind: PropKind;
+  /** Bottom centre, px. */
+  x: number;
+  y: number;
+  layer: DecorLayer;
+  /** Mirrored horizontally (the second of a `mirror` pair). */
+  flip: boolean;
+}
+
 export interface LevelData {
   id: string;
   name: string;
@@ -138,8 +209,13 @@ export interface LevelData {
   /** Arrival points by id (anchors and checkpoints). */
   anchors: Record<string, Anchor>;
   enemySpawns: EnemySpawn[];
-  props: { kind: PropKind; x: number; y: number }[];
+  /** Decoration from tile markers and from `decor` placements, in authoring order. */
+  props: Prop[];
   objects: WorldObject[];
+  /** masonry[row][col]: the tile is worked stone (`%`, `-`) whatever the region's ground. */
+  masonry: boolean[][];
+  /** `decor` placements whose `at` names nothing in the level (content errors). */
+  unresolvedDecor: string[];
   environment: EnvironmentConfig;
   enemyRespawn: 'rest' | 'timer';
   /** Characters with no meaning (content errors, reported by validation). */
@@ -160,6 +236,7 @@ export function parseLevel(def: LevelDefinition): LevelData {
   const cols = Math.max(...def.rows.map((r) => r.length));
   const legend = { ...DEFAULT_MARKERS, ...def.markers };
   const tiles: TileKind[][] = [];
+  const masonry: boolean[][] = [];
   const anchors: Record<string, Anchor> = {};
   const enemySpawns: EnemySpawn[] = [];
   const props: LevelData['props'] = [];
@@ -175,10 +252,12 @@ export function parseLevel(def: LevelDefinition): LevelData {
   for (let r = 0; r < rows; r++) {
     const line = def.rows[r] ?? '';
     const row: TileKind[] = [];
+    const stone: boolean[] = [];
     for (let c = 0; c < cols; c++) {
       const ch = line[c] ?? '.';
-      row.push(ch === '#' ? TILE.solid : ch === '=' ? TILE.oneWay : TILE.empty);
-      if (ch === '#' || ch === '=' || ch === '.' || ch === ' ') continue;
+      row.push(ch === '#' || ch === '%' ? TILE.solid : ch === '=' || ch === '-' ? TILE.oneWay : TILE.empty);
+      stone.push(ch === '%' || ch === '-');
+      if (ch === '#' || ch === '=' || ch === '%' || ch === '-' || ch === '.' || ch === ' ') continue;
       const m = legend[ch];
       if (!m) {
         unknown.add(ch);
@@ -195,7 +274,7 @@ export function parseLevel(def: LevelDefinition): LevelData {
           enemySpawns.push({ id: `${def.id}.enemy.${enemySpawns.length}`, enemyId: m.enemy, x, y });
           break;
         case 'prop':
-          props.push({ kind: m.prop, x, y });
+          props.push({ kind: m.prop, x, y, layer: 'mid', flip: false });
           break;
         case 'checkpoint':
           claim(m.id);
@@ -216,6 +295,24 @@ export function parseLevel(def: LevelDefinition): LevelData {
       }
     }
     tiles.push(row);
+    masonry.push(stone);
+  }
+
+  // Anchor-relative decoration. Resolved after the markers so `at` can name any of them.
+  const unresolvedDecor: string[] = [];
+  for (const d of def.decor ?? []) {
+    let base: { x: number; y: number } | undefined;
+    if (typeof d.at === 'string') base = anchors[d.at] ?? objects.find((o) => o.id === d.at);
+    else base = { x: d.at.col * ts + ts / 2, y: (d.at.row + 1) * ts };
+    if (!base) {
+      unresolvedDecor.push(`${d.prop} @ ${String(d.at)}`);
+      continue;
+    }
+    const dx = d.dx ?? 0;
+    const y = base.y + (d.dy ?? 0);
+    const layer = d.layer ?? 'mid';
+    props.push({ kind: d.prop, x: base.x + dx, y, layer, flip: false });
+    if (d.mirror && dx !== 0) props.push({ kind: d.prop, x: base.x - dx, y, layer, flip: true });
   }
   const firstArrival = anchors.start ?? Object.values(anchors)[0];
   if (!firstArrival) throw new Error(`Level ${def.id} has no arrival point (P, an anchor or a checkpoint)`);
@@ -235,6 +332,8 @@ export function parseLevel(def: LevelDefinition): LevelData {
     enemySpawns,
     props,
     objects,
+    masonry,
+    unresolvedDecor,
     environment: def.environment ?? {},
     enemyRespawn: def.enemyRespawn ?? 'timer',
     unknownMarkers: [...unknown],

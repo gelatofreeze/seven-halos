@@ -216,7 +216,16 @@ export class WorldScene extends Phaser.Scene {
     }
     this.rpgHud.update();
     const blocked = this.paused || this.menuOpen || this.shrineOpen || this.transitioning;
-    this.prompt.set(blocked ? null : promptLabel(this.sim.focus, services.profile.world));
+    const label = blocked ? null : promptLabel(this.sim.focus, services.profile.world);
+    this.prompt.set(label);
+    if (label) {
+      // Above the player's head, in CSS px.
+      const canvas = this.game.canvas.getBoundingClientRect();
+      const k = canvas.height / this.scale.height;
+      const cam = this.cameras.main;
+      const p = this.sim.player.body;
+      this.prompt.place(canvas.left + (p.footX - cam.scrollX) * k, canvas.top + (p.footY - 40 - cam.scrollY) * k);
+    }
     if (blocked) return;
     // A shrine menu choice (rest / travel) leaves the region once the menu has closed.
     if (this.sim.pendingTravel) {

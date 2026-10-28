@@ -62,6 +62,53 @@ New prop kinds need a texture (`src/render/textures/worldArt.ts`, registered in 
 3. give it a prompt label in `ui/worldModel.ts`;
 4. if it changes permanently, give it a stable id and a `WorldProgress` flag.
 
+## Composition conventions (2C.1a)
+Gameplay geometry lives in the ASCII rows; everything else a region shows is decoration placed by data. Collision never depends on decoration.
+
+**Tile materials.** `#` and `=` use the region's ground (`environment.ground`: `stone` or `earth`). `%` (solid) and `-` (one-way slab) are always masonry. Use masonry for anything built (bridgeheads, a shrine plateau, stairs), so built and natural surfaces read differently at a glance.
+
+**Decoration placed relative to points.** `decor` entries put a prop at an anchor or object id, or at a tile `{ col, row }`, plus a pixel offset:
+```ts
+decor: [
+  { prop: 'sanctuaryWall', at: 'sanctuary.shrine', layer: 'back' },     // centred on the shrine
+  { prop: 'brazier', at: 'sanctuary.shrine', dx: 64, mirror: true },    // a symmetric pair at ±64 px
+  { prop: 'bridgeRuin', at: { col: 40, row: 22 }, layer: 'back' },
+]
+```
+- **Symmetric architecture** (a principal hall, a shrine plateau): pick the axis object (usually the checkpoint), mirror the collision tiles around its column, and place every major piece relative to it, with `mirror: true` for pairs.
+  - `tests/composition.test.ts` checks the sanctuary's axis, tile symmetry, mirrored pairs and wall fit.
+  - Don't force symmetry where the architecture doesn't call for it; ivy, rubble and the wilderness stay organic.
+- Symmetric textures are drawn as their left half and mirrored (`mirrorLeftHalf`), so their centre is exact.
+
+**Layers and depth** (back to front):
+- backdrop (screen-space parallax, with the optional distant `environment.landmark`);
+- `far` (−40, dimmed toward the sky);
+- `back` (−20: walls, arcades, the bridge, big trees);
+- `mid` (−6, default props);
+- tiles (0);
+- light spill, flames, door frames (1–2);
+- shafts of light (7);
+- enemies (8), player (10);
+- `front` (14, sparse low accents only).
+
+Per-kind depths live in `PROP_VISUALS` (`src/render/environment/props.ts`), so a new prop kind is a texture plus one table entry.
+
+**Light.** `LightRig` (`src/render/environment/lighting.ts`) has named presets: `brazier`, `torch`, `shrine`, `window`, `divine`, `treasure`, `lantern`, `seal`, `moon`. Each light is:
+- a glow behind the tiles;
+- a wide, faint additive spill over them (so stone near a brazier warms up);
+- optionally an animated flame, sparse embers, flicker or a slow pulse.
+
+Props declare their lights in `PROP_VISUALS`; regions never place raw light sprites. A `lightShaft` prop adds a beam with dust drifting only inside it. `environment.fireflies` adds forest life.
+
+**Readability rules.**
+- Exits are marked by matching waymarkers on both sides, not by UI.
+- Every platform the eye reads as one is reachable with the base jump: ≤ 3 tiles up, gaps ≤ 5 tiles.
+- Optional routes start in plain sight of the main path (the tree's low branch) and show their reward's glow from below.
+- Combat spaces are open, with enemies far enough apart to be met one at a time.
+- The interaction prompt floats above the player, never over the object.
+
+**Traversal tests.** `tests/traversal.test.ts` drives the real movement code with a bot that holds a direction and jumps at walls and gap edges. It covers each region's main route, the way back, falling into the ravine, the optional climb and the sealed gate. `validateWorld`'s reachability check stays as a fast structural screen, but only these tests prove a route. Add one for every new mandatory route; if it fails, fix the geometry, not the movement tuning.
+
 ## Development regions
 The combat **Test Chamber** is registered only in development builds (`setUpDevWorld` in `src/dev/devTools.ts`):
 - Reach it from **MENU → Progression → Development tools → Go to the Test Chamber**, or with `?region=test-chamber`.

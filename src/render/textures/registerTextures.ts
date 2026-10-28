@@ -17,8 +17,30 @@ import {
   buildShrine,
   buildSky,
   buildTileset,
+  buildTreeLine,
 } from './environmentArt';
-import { buildBush, buildCache, buildGate, buildPlinth, buildRuin, buildSanctuaryFacade, buildTree } from './worldArt';
+import {
+  buildAncientTree,
+  buildBrazierBase,
+  buildBridgeRuin,
+  buildCastle,
+  buildColonnade,
+  buildDoorArch,
+  buildFallenColumn,
+  buildFlameSheet,
+  buildFlowers,
+  buildGable,
+  buildHalo,
+  buildLightShaft,
+  buildSanctuaryFrame,
+  buildSanctuaryIvy,
+  buildSanctuaryWall,
+  buildShrineArch,
+  buildStream,
+  buildTorch,
+  buildWaymarker,
+} from './architectureArt';
+import { buildBush, buildCache, buildGate, buildPlinth, buildRuin, buildTree } from './worldArt';
 
 /** Texture keys used by the presentation layer. Final art loaded via the Loader must use the same keys. */
 export const TEX = {
@@ -32,6 +54,8 @@ export const TEX = {
   far: 'bg.far',
   mid: 'bg.mid',
   fog: 'bg.fog',
+  forestFar: 'bg.forest.far',
+  forestMid: 'bg.forest.mid',
   glow: 'fx.glow',
   spark: 'fx.spark',
   mote: 'fx.mote',
@@ -45,7 +69,25 @@ export const TEX = {
   bush: 'prop.bush',
   ruin: 'prop.ruin',
   plinth: 'prop.plinth',
-  sanctuary: 'prop.sanctuary',
+  brazierBase: 'prop.brazier.base',
+  torch: 'prop.torch',
+  flame: 'fx.flame',
+  sanctuaryWall: 'prop.sanctuary.wall',
+  sanctuaryFrame: 'prop.sanctuary.frame',
+  sanctuaryIvy: 'prop.sanctuary.ivy',
+  gable: 'prop.gable',
+  halo: 'prop.halo',
+  doorArch: 'prop.door-arch',
+  lightShaft: 'fx.light-shaft',
+  waymarker: 'prop.waymarker',
+  ancientTree: 'prop.ancient-tree',
+  colonnade: 'prop.colonnade',
+  fallenColumn: 'prop.fallen-column',
+  flowers: 'prop.flowers',
+  bridgeRuin: 'prop.bridge-ruin',
+  stream: 'prop.stream',
+  shrineArch: 'prop.shrine-arch',
+  castle: 'prop.castle',
   gate: 'prop.gate',
   cacheClosed: 'prop.cache.closed',
   cacheOpen: 'prop.cache.open',
@@ -77,6 +119,8 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
   add(TEX.far, () => buildFarLayer(512, 220));
   add(TEX.mid, () => buildMidLayer(512, 170));
   add(TEX.fog, () => buildFog(512, 96));
+  add(TEX.forestFar, () => buildTreeLine(512, 200, 'far'));
+  add(TEX.forestMid, () => buildTreeLine(512, 160, 'near'));
   add(TEX.glow, () => buildRadialGlow(64));
   add(TEX.spark, () => buildPixel(2, '#ffffff'));
   add(TEX.mote, () => buildPixel(1, '#ffffff'));
@@ -90,7 +134,28 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
   add(TEX.bush, buildBush);
   add(TEX.ruin, buildRuin);
   add(TEX.plinth, buildPlinth);
-  add(TEX.sanctuary, buildSanctuaryFacade);
+  add(TEX.brazierBase, buildBrazierBase);
+  add(TEX.torch, buildTorch);
+  if (!t.exists(TEX.flame)) {
+    const flame = t.addCanvas(TEX.flame, buildFlameSheet(4));
+    for (let f = 0; f < 4; f++) flame?.add(f, 0, f * 10, 0, 10, 14);
+  }
+  add(TEX.sanctuaryWall, buildSanctuaryWall);
+  add(TEX.sanctuaryFrame, buildSanctuaryFrame);
+  add(TEX.sanctuaryIvy, buildSanctuaryIvy);
+  add(TEX.gable, buildGable);
+  add(TEX.halo, buildHalo);
+  add(TEX.doorArch, buildDoorArch);
+  add(TEX.lightShaft, buildLightShaft);
+  add(TEX.waymarker, buildWaymarker);
+  add(TEX.ancientTree, buildAncientTree);
+  add(TEX.colonnade, buildColonnade);
+  add(TEX.fallenColumn, buildFallenColumn);
+  add(TEX.flowers, buildFlowers);
+  add(TEX.bridgeRuin, buildBridgeRuin);
+  add(TEX.stream, buildStream);
+  add(TEX.shrineArch, buildShrineArch);
+  add(TEX.castle, buildCastle);
   add(TEX.gate, buildGate);
   add(TEX.cacheClosed, () => buildCache(false));
   add(TEX.cacheOpen, () => buildCache(true));
