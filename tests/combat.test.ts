@@ -126,7 +126,7 @@ describe('Sword attack', () => {
   });
 });
 
-describe('Hollow Sentinel', () => {
+describe('Vowcarved Sentinel', () => {
   it('telegraphs before striking and damages a player who stands still', () => {
     const { sim, input, enemy, player } = engagedSim();
     let telegraphTick = -1;

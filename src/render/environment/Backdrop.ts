@@ -1,5 +1,15 @@
 import type Phaser from 'phaser';
+import type { EnvironmentConfig } from '../../world/Level';
 import { TEX } from '../textures/registerTextures';
+
+/** Per-backdrop tints over the shared placeholder layers: sky, far, mid, fog. */
+const TINTS: Record<NonNullable<EnvironmentConfig['backdrop']>, readonly [number, number, number, number]> = {
+  ruins: [0xffffff, 0xffffff, 0xffffff, 0xffffff],
+  // Forest: green-gold canopy light instead of cold violet.
+  forest: [0xa8c8b0, 0x7fa886, 0x6f9a6c, 0xb8e0b0],
+  // Sanctuary: a warmer dusk.
+  sanctuary: [0xffd6c4, 0xe0c4cc, 0xd8c0c0, 0xffe4c8],
+};
 
 interface Layer {
   sprite: Phaser.GameObjects.TileSprite;
@@ -24,12 +34,16 @@ export class Backdrop {
     private readonly scene: Phaser.Scene,
     /** World Y of the level's main floor; layers rest on this line. */
     private readonly horizonY: number,
+    environment: EnvironmentConfig = {},
   ) {
     this.sky = scene.add.tileSprite(0, 0, 16, 16, TEX.sky).setOrigin(0, 0).setScrollFactor(0).setDepth(-100);
     this.moon = scene.add.image(0, 0, TEX.moon).setScrollFactor(0).setDepth(-99);
     this.addLayer(TEX.far, 0.08, 0.05, -70, 0, -90);
     this.addLayer(TEX.mid, 0.3, 0.2, -40, 0, -80);
     this.addLayer(TEX.fog, 0.55, 0.4, -30, 6, -70).sprite.setAlpha(0.8);
+    const tint = TINTS[environment.backdrop ?? 'ruins'];
+    this.sky.setTint(tint[0]);
+    this.layers.forEach((l, i) => l.sprite.setTint(tint[i + 1]!));
     this.resize();
   }
 

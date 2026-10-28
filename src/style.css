@@ -779,3 +779,127 @@ body {
     grid-auto-rows: 46px;
   }
 }
+
+/* ---- Interaction prompt ---------------------------------------------------------------- */
+.interact-prompt {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + 22%);
+  transform: translate(-50%, -50%);
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #ffd27a;
+  border-radius: 22px;
+  background: rgba(16, 12, 28, 0.82);
+  color: #ffe9b0;
+  font: inherit;
+  font-size: 13px;
+  box-shadow: 0 0 14px rgba(255, 210, 122, 0.35);
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.interact-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #ffd27a;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* On touch screens the prompt itself is the button; no key hint. */
+.interact-prompt.touch .interact-key {
+  display: none;
+}
+
+.interact-prompt.touch {
+  min-height: 52px;
+  padding: 0 22px;
+  font-size: 14px;
+}
+
+/* ---- Shrine menu ----------------------------------------------------------------------- */
+.sm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: radial-gradient(ellipse at center, rgba(60, 44, 20, 0.55), rgba(4, 3, 10, 0.8));
+  padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+}
+
+.sm {
+  width: min(420px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  background: #15111f;
+  border: 1px solid #e8c77a;
+  border-radius: 6px;
+  color: var(--ui-ink);
+  box-shadow: 0 0 40px rgba(232, 199, 122, 0.25);
+}
+
+.sm-title {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: #ffe9b0;
+}
+
+.sm-sub,
+.sm-note {
+  font-size: 12px;
+  opacity: 0.75;
+  margin: 2px 0 8px;
+}
+
+.sm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sm-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--ui-edge);
+  border-radius: 4px;
+  background: rgba(70, 60, 110, 0.6);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+
+.sm-button.primary {
+  background: rgba(120, 90, 40, 0.7);
+  border-color: #e8c77a;
+  font-weight: 700;
+}
+
+.sm-button:disabled {
+  opacity: 0.5;
+}
+
+.sm-button:focus-visible {
+  outline: 2px solid #ffd27a;
+}
+
+.sm-region {
+  font-size: 11px;
+  opacity: 0.7;
+}

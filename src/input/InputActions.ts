@@ -1,5 +1,5 @@
 /** Logical gameplay actions. Devices map to these; gameplay never sees raw keys or touches. */
-export const ACTIONS = ['left', 'right', 'down', 'jump', 'attack', 'heavy', 'dodge', 'guard', 'parry'] as const;
+export const ACTIONS = ['left', 'right', 'down', 'jump', 'attack', 'heavy', 'dodge', 'guard', 'parry', 'interact'] as const;
 export type ActionName = (typeof ACTIONS)[number];
 
 /** Input snapshot consumed by one fixed simulation step. */
@@ -16,6 +16,8 @@ export interface InputFrame {
   dodgePressed: boolean;
   guardHeld: boolean;
   parryPressed: boolean;
+  /** Use the nearby shrine, cache or door. */
+  interactPressed: boolean;
 }
 
 export function createInputFrame(): InputFrame {
@@ -30,6 +32,7 @@ export function createInputFrame(): InputFrame {
     dodgePressed: false,
     guardHeld: false,
     parryPressed: false,
+    interactPressed: false,
   };
 }
 

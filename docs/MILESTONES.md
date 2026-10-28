@@ -6,7 +6,7 @@
 - [x] Movement: acceleration/deceleration, variable jump, coyote time, jump buffer, apex hang, fast fall, one-way platforms, hard landings
 - [x] Dodge roll with startup, i-frames, recovery and cancel window
 - [x] Sword attack with 2-hit chain, stamina, hitboxes on active frames only, hit-stop
-- [x] Hollow Sentinel training enemy: telegraphed cleave, poise/hyper-armour, flinch, death and respawn
+- [x] Vowcarved Sentinel training enemy: telegraphed cleave, poise/hyper-armour, flinch, death and respawn
 - [x] Touch (multi-touch) and keyboard controls, safe areas, no browser gestures
 - [x] Placeholder art, parallax, lights, particles, synthesized SFX, debug overlay
 - [ ] Hands-on feel tuning on real iPhone/Android hardware
@@ -48,14 +48,26 @@
 - [x] Content validation (references, animation mappings, probabilities, slots, duplicate ids) and docs/CONTENT.md
 - [ ] Hand playtest on iPhone (menu drag, layout, upgrade flow)
 
-### Next
-Spending Character XP (levelling) at a shrine, a blacksmith reusing the upgrade service, running and jumping attacks, a ranged enemy, player poise/armour, shields as equipment.
+### Update 2C.1 — The first journey (done, pending device playtest)
+- [x] Data-driven region registry, stable ids, marker legend per region; one generalized `WorldScene`
+- [x] Doorway transitions with no bounce-back, input isolation, clean teardown; backtracking
+- [x] Sanctuary Outskirts (safe start, first shrine, reserved NPC/service places) and Forest Road (enemies, ravine, climb, cache, shrine, sealed gate)
+- [x] Shrine activation, rest (enemies return), fast travel between lit shrines, death respawn at the last shrine
+- [x] Contextual interaction prompt (E / tap) for shrines, caches and doors
+- [x] One-time treasure cache backed by a saved world flag
+- [x] Save v3 with a v2 → v3 migration (v1 path kept); world data validated on load
+- [x] World validation (ids, exits, anchors, reachability) and docs/WORLD.md
+- [x] Test chamber kept as a development-only region; Sentinel shown as "Vowcarved Sentinel"
+- [ ] Hand playtest on iPhone
+
+### Next (2C.2 — First Adventure)
+The oracle and NPC dialogue, quests, a hidden cave, lore discovery and the double-jump ring. Then: spending Character XP (levelling) at a shrine, a blacksmith reusing the upgrade service, running and jumping attacks, a ranged enemy, player poise/armour, shields as equipment.
 
 ## Phase 3 — RPG layer
 Classes and starting kits, attribute levelling with Experience, Gold vendors, Weapon XP upgrades (done in 2B.1), randomized loot tables with rare weapon drops, armour and accessories in the existing slots.
 
 ## Phase 4 — World
-Shrine checkpoints with rest/respawn, interconnected rooms and level streaming, a Tiled (or in-house) level pipeline, secrets and shortcuts, the first kingdom's castle.
+Shrine checkpoints and interconnected regions (foundation done in 2C.1), a Tiled (or in-house) level pipeline, secrets and shortcuts, the first kingdom's castle.
 
 ## Phase 5 — Bosses and presentation
 The first fallen-god boss, multi-phase patterns, cinematic intros, final art pipeline, music and recorded SFX, settings (remappable controls, touch layout editor, audio).

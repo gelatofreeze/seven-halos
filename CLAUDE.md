@@ -28,6 +28,8 @@ One Creator; seven gods, each with a Halo; sibling love → betrayal → war →
 - Equipment goes through the `Loadout` rules and `Simulation.requestEquip(uid, slot)`; upgrades through `rpg/WeaponUpgrades.ts`. UI code never mutates the profile directly except backpack order (`Inventory.move`).
 - Sprites pick frames from logic state (`animFrame`); never call `anims.play` per frame.
 - Run `validateContent` / `validateVisuals` (part of `npm test`) when adding content; see docs/CONTENT.md.
+- The world is data: add regions as `RegionDefinition`s in `src/data/world/` and register them in `src/world/regions.ts` (docs/WORLD.md). Never add a scene per area; `WorldScene` shows every region.
+- Region, checkpoint and cache ids are saved: never rename a shipped one. World progress lives in `profile.world`; per-session state (defeated enemies) in `WorldSession`.
 - Development-only features go through `DEV_TOOLS_ENABLED` / `src/dev/` and must compile out of `npm run build`; `npm run check` enforces this.
 
 ## Originality and licensing
@@ -42,3 +44,4 @@ Add or adjust tests in `tests/` for any movement or combat rule change (see `tes
 ## Git
 Work on `dev/*` branches and open PRs. Don't merge without the owner's approval.
 Whenever you ask the owner to merge, give the direct PR link (`https://github.com/<owner>/<repo>/pull/<n>`); the merge button is at the bottom of that page. Say when CI is green so they know it's safe to merge.
+After a merge to `main`, give the play link: https://gelatofreeze.github.io/seven-halos/ (GitHub Pages redeploys from `main`).

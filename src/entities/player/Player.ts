@@ -385,7 +385,18 @@ export class Player implements Combatant {
 
   // ---- Life cycle ---------------------------------------------------------------------------
 
+  /**
+   * Replaces the in-place respawn after death, e.g. with a trip back to the
+   * last shrine (set by the simulation in world regions). Called every step
+   * once the death delay has passed, so it must be idempotent.
+   */
+  respawnOverride: (() => void) | null = null;
+
   respawn(): void {
+    if (this.respawnOverride) {
+      this.respawnOverride();
+      return;
+    }
     this.health.reset();
     this.stamina.reset();
     this.body.teleport(this.spawnX, this.spawnY);

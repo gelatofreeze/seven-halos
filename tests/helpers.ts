@@ -14,12 +14,13 @@ export class ScriptedInput implements InputProvider {
     this.frame.heavyPressed = false;
     this.frame.dodgePressed = false;
     this.frame.parryPressed = false;
+    this.frame.interactPressed = false;
   }
 }
 
 export interface FlatSimOptions extends SimulationOptions {
   enemyCol?: number;
-  /** Level marker for the enemy: E = Hollow Sentinel, R = Barrow Reaper. */
+  /** Level marker for the enemy: E = Vowcarved Sentinel, R = Barrow Reaper. */
   enemy?: 'E' | 'R';
   /** More enemies: [column, marker]. */
   extraEnemies?: [number, 'E' | 'R'][];
@@ -51,7 +52,7 @@ export function run(sim: Simulation, input: ScriptedInput, steps: number, each?:
 }
 
 /**
- * Player at column 5, Hollow Sentinel at column 8: within aggro range, it walks
+ * Player at column 5, Vowcarved Sentinel at column 8: within aggro range, it walks
  * into range and attacks. The attack is forced (standard cleave by default) so
  * timing-based tests are deterministic.
  */

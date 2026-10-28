@@ -75,7 +75,7 @@ export interface EnemyDefinition {
 export const ENEMIES: Record<string, EnemyDefinition> = {
   'hollow-sentinel': {
     id: 'hollow-sentinel',
-    name: 'Hollow Sentinel',
+    name: 'Vowcarved Sentinel',
     body: { w: 20, h: 34 },
     maxHealth: 180,
     posture: { max: 120, regenDelay: 2.5, regenRate: 20 },

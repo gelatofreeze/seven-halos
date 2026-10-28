@@ -21,6 +21,6 @@ export class BootScene extends Phaser.Scene {
     const container = this.game.canvas.parentElement ?? document.body;
     services.viewport = new Viewport(this.game, container);
     registerPlaceholderTextures(this);
-    this.scene.start('TestChamber');
+    this.scene.start('World');
   }
 }

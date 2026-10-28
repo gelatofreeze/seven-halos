@@ -3,7 +3,6 @@ import { sfx } from '../audio/Sfx';
 import { DISPLAY } from '../config/display';
 import { FixedTimestep } from '../core/FixedTimestep';
 import { smoothingFactor } from '../core/math';
-import { TEST_CHAMBER } from '../data/levels/testChamber';
 import { DebugOverlay } from '../debug/DebugOverlay';
 import { getServices } from '../game/services';
 import { Effects } from '../render/Effects';
@@ -13,14 +12,16 @@ import { LevelRenderer } from '../render/environment/LevelRenderer';
 import { PlayerView } from '../render/views/PlayerView';
 import { EnemyView } from '../render/views/EnemyView';
 import { PickupViews } from '../render/views/PickupView';
-import { DEV_TOOLS_ENABLED } from '../config/build';
 import { getItem } from '../data/items';
 import { PauseMenu } from '../ui/PauseMenu';
 import { RpgHud } from '../ui/RpgHud';
-import { Toasts } from '../ui/Toasts';
-import { parseLevel } from '../world/Level';
 import type { SimEvent } from '../world/SimEvents';
-import { Simulation } from '../world/Simulation';
+import type { Simulation } from '../world/Simulation';
+import { InteractionPrompt } from '../ui/InteractionPrompt';
+import { ShrineMenu } from '../ui/ShrineMenu';
+import { cacheMessage, promptLabel } from '../ui/worldModel';
+import { findCheckpoint } from '../world/regions';
+import type { UIScene } from './UIScene';
 
 const CAMERA = {
   lookAhead: 28,
@@ -31,19 +32,27 @@ const CAMERA = {
   offsetY: -26,
 };
 
+/** Camera fade when leaving / entering a region, ms. Death fades slower. */
+const FADE = { out: 220, outAfterDeath: 600, in: 260 };
+
 /**
- * Movement and combat test scene. The simulation advances in fixed steps;
- * everything drawn here is derived from simulation state each frame.
+ * The one gameplay scene. It shows whichever region `GameWorld` has loaded:
+ * the simulation advances in fixed steps and everything drawn here is derived
+ * from simulation state each frame. Moving to another region (a doorway,
+ * death, resting, fast travel) fades out, lets `GameWorld` build the next
+ * region, and restarts this scene, so every per-region object, listener and
+ * DOM panel is torn down on SHUTDOWN and nothing accumulates.
  */
-export class TestChamberScene extends Phaser.Scene {
+export class WorldScene extends Phaser.Scene {
   private sim!: Simulation;
   private readonly timestep = new FixedTimestep(60);
   private playerView!: PlayerView;
   private enemyViews: EnemyView[] = [];
   private pickupViews!: PickupViews;
   private rpgHud!: RpgHud;
-  private toasts!: Toasts;
   private menu!: PauseMenu;
+  private shrineMenu!: ShrineMenu;
+  private prompt!: InteractionPrompt;
   private saveTimer = 0;
   private backdrop!: Backdrop;
   private levelRenderer!: LevelRenderer;
@@ -55,20 +64,31 @@ export class TestChamberScene extends Phaser.Scene {
   private lookAhead = 0;
   private paused = false;
   private menuOpen = false;
+  private shrineOpen = false;
+  /** Fading out to another region: nothing steps and no input is read. */
+  private transitioning = false;
 
   constructor() {
-    super('TestChamber');
+    super('World');
   }
 
   create(): void {
     const services = getServices(this);
-    const level = parseLevel(TEST_CHAMBER);
-    // The profile persists across sessions; development builds also stock the armoury altar.
-    this.sim = new Simulation(level, { profile: services.profile, devPickups: DEV_TOOLS_ENABLED });
+    const world = services.world;
+    this.sim = world.sim;
+    const level = this.sim.level;
+    this.transitioning = false;
+    this.menuOpen = false;
+    this.shrineOpen = false;
+    this.paused = false;
+    this.lookAhead = 0;
+    this.timestep.reset();
 
     this.cameras.main.setBackgroundColor(DISPLAY.backgroundColor);
-    this.backdrop = new Backdrop(this, level.playerSpawn.y);
-    this.levelRenderer = new LevelRenderer(this, level);
+    // Parallax layers rest on the lowest arrival point (the region's main floor).
+    const floorY = Math.max(...Object.values(level.anchors).map((a) => a.y));
+    this.backdrop = new Backdrop(this, floorY, level.environment);
+    this.levelRenderer = new LevelRenderer(this, level, services.profile.world);
     this.atmosphere = new Atmosphere(this, level);
     this.playerView = new PlayerView(this, this.sim.player);
     this.enemyViews = this.sim.enemies.map((e) => new EnemyView(this, e));
@@ -82,19 +102,22 @@ export class TestChamberScene extends Phaser.Scene {
       this.rpgHud.place(scale, vp?.safeArea.left ?? 0, vp?.safeArea.top ?? 0, canvas.left, canvas.top);
     };
     placeHud();
-    services.viewport?.onChange(() => requestAnimationFrame(placeHud));
-    this.toasts = new Toasts(app);
+    const unsubscribeViewport = services.viewport?.onChange(() => requestAnimationFrame(placeHud));
     this.menu = new PauseMenu(app, this.sim, services.save, (open) => this.setMenuOpen(open));
-    services.onMenuToggle = () => this.menu.toggle();
-    if (services.save.status === 'corrupt') this.toasts.show('Your save could not be read; a backup was kept and a new one started.', 'info', 5);
-    if (services.save.status === 'migrated')
-      this.toasts.show(services.save.migrationBackedUp ? 'Save updated: Forge Points are now Weapon XP (×10). Your old save was backed up.' : 'Save could not be backed up, so it was not updated; progress this session will not be saved.', 'info', 6);
-    if (services.save.status === 'unsupported-version') this.toasts.show('This save is from a newer version; progress will not be saved.', 'info', 5);
+    this.shrineMenu = new ShrineMenu(app, this.sim, (open) => this.setShrineOpen(open));
+    const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    this.prompt = new InteractionPrompt(app, () => services.input.tap('interact', 'prompt'), touch);
+    services.onMenuToggle = () => {
+      if (this.transitioning) return;
+      if (this.shrineMenu.isOpen) this.shrineMenu.close();
+      else this.menu.toggle();
+    };
+    this.announceArrival();
     this.effects = new Effects(this);
     this.debug = new DebugOverlay(this, this.sim, services.debug);
     services.onDebugToggle = () => this.debug.toggle();
     // Expose the simulation for automated browser checks and console inspection.
-    if (services.debug.enabled) (window as unknown as { __sevenHalos?: unknown }).__sevenHalos = { sim: this.sim, scene: this };
+    if (services.debug.enabled) (window as unknown as { __sevenHalos?: unknown }).__sevenHalos = { sim: this.sim, scene: this, world };
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, level.widthPx, level.heightPx);
@@ -102,6 +125,7 @@ export class TestChamberScene extends Phaser.Scene {
     this.camX = this.sim.player.body.footX;
     this.camY = this.sim.player.body.footY + CAMERA.offsetY;
     cam.centerOn(this.camX, this.camY);
+    cam.fadeIn(FADE.in);
 
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.game.events.on(Phaser.Core.Events.HIDDEN, this.onHidden, this);
@@ -112,12 +136,35 @@ export class TestChamberScene extends Phaser.Scene {
       this.game.events.off(Phaser.Core.Events.VISIBLE, this.onVisible, this);
       services.save.saveIfChanged();
       services.onMenuToggle = null;
+      unsubscribeViewport?.();
       this.menu.destroy();
+      this.shrineMenu.destroy();
+      this.prompt.destroy();
       this.rpgHud.destroy();
-      this.toasts.destroy();
     });
 
-    this.scene.launch('UI', { player: this.sim.player });
+    // The HUD scene keeps running across regions; it just follows the new player.
+    if (this.scene.isActive('UI')) (this.scene.get('UI') as UIScene).setPlayer(this.sim.player);
+    else this.scene.launch('UI', { player: this.sim.player });
+  }
+
+  /** Region banner and one-off save notices. */
+  private announceArrival(): void {
+    const services = getServices(this);
+    const toasts = services.toasts;
+    const world = services.world;
+    const reason = world.lastEnterReason;
+    if (reason === 'load') {
+      const status = services.save.status;
+      if (status === 'corrupt') toasts.show('Your save could not be read; a backup was kept and a new one started.', 'info', 5);
+      if (status === 'migrated')
+        toasts.show(services.save.migrationBackedUp ? 'Save updated to this version. Your old save was backed up.' : 'Save could not be backed up, so it was not updated; progress this session will not be saved.', 'info', 6);
+      if (status === 'unsupported-version') toasts.show('This save is from a newer version; progress will not be saved.', 'info', 5);
+    }
+    const shrine = findCheckpoint(world.location.anchor);
+    if (reason === 'death') toasts.show(shrine ? `You awaken at the ${shrine.name}.` : 'You awaken.', 'info', 3);
+    else if (reason === 'rest') toasts.show('Rested. The shrine restores you; the fallen rise again.', 'info', 3);
+    else toasts.show(world.region.name, 'info', 2.4);
   }
 
   private onResize(size: Phaser.Structs.Size): void {
@@ -142,6 +189,15 @@ export class TestChamberScene extends Phaser.Scene {
    */
   private setMenuOpen(open: boolean): void {
     this.menuOpen = open;
+    this.isolateInput();
+  }
+
+  private setShrineOpen(open: boolean): void {
+    this.shrineOpen = open;
+    this.isolateInput();
+  }
+
+  private isolateInput(): void {
     const services = getServices(this);
     services.releaseInputs();
     services.input.discardPendingPresses();
@@ -159,13 +215,21 @@ export class TestChamberScene extends Phaser.Scene {
       services.save.saveIfChanged();
     }
     this.rpgHud.update();
-    if (this.paused || this.menuOpen) return;
+    const blocked = this.paused || this.menuOpen || this.shrineOpen || this.transitioning;
+    this.prompt.set(blocked ? null : promptLabel(this.sim.focus, services.profile.world));
+    if (blocked) return;
+    // A shrine menu choice (rest / travel) leaves the region once the menu has closed.
+    if (this.sim.pendingTravel) {
+      this.beginTransition();
+      return;
+    }
     const dt = Math.min(deltaMs / 1000, 0.1);
     const input = getServices(this).input;
     this.timestep.advance(dt, (step) => this.sim.step(step, input));
     const alpha = this.sim.inHitstop ? 1 : this.timestep.alpha;
 
     this.sim.events.drain(this.handleEvent);
+    if (this.sim.pendingTravel && !this.shrineOpen) this.beginTransition();
 
     this.playerView.update(alpha, dt);
     const riposteTarget = this.sim.player.findRiposteTarget();
@@ -176,6 +240,27 @@ export class TestChamberScene extends Phaser.Scene {
     this.levelRenderer.update(dt);
     this.effects.update(dt);
     this.debug.update(dt);
+  }
+
+  /** Fade out, let GameWorld load the destination, then rebuild this scene for it. */
+  private beginTransition(): void {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    const services = getServices(this);
+    services.releaseInputs();
+    services.input.discardPendingPresses();
+    this.sim.discardQueuedInput();
+    this.menu.close();
+    this.prompt.set(null);
+    const cam = this.cameras.main;
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      services.world.completeTravel();
+      services.save.saveIfChanged();
+      // Presses made during the fade are dropped too.
+      services.input.discardPendingPresses();
+      this.scene.restart();
+    });
+    cam.fadeOut(this.sim.pendingTravel?.reason === 'death' ? FADE.outAfterDeath : FADE.out, 0, 0, 0);
   }
 
   private updateCamera(alpha: number, dt: number): void {
@@ -236,18 +321,33 @@ export class TestChamberScene extends Phaser.Scene {
       case 'telegraph':
         sfx.play(e.attackId.startsWith('reaper.') ? 'reaperTelegraph' : 'telegraph');
         break;
+      case 'checkpointActivated':
+        sfx.play('rarePickup');
+        this.levelRenderer.refreshObjects();
+        getServices(this).toasts.show(`Shrine lit — ${e.name}`, 'rare', 3);
+        getServices(this).save.saveIfChanged();
+        break;
+      case 'shrine':
+        this.shrineMenu.open(e.id, e.firstTime);
+        break;
+      case 'cacheOpened':
+        sfx.play('rarePickup');
+        this.levelRenderer.refreshObjects();
+        getServices(this).toasts.show(cacheMessage(e.items, e.gold, (id) => getItem(id).name), 'rare', 3.2);
+        getServices(this).save.saveIfChanged();
+        break;
       case 'reward':
         sfx.play('reward');
-        this.toasts.show(`${e.enemyName} defeated  ·  +${e.experience} XP  ·  +${e.gold} Gold`, 'reward');
+        getServices(this).toasts.show(`${e.enemyName} defeated  ·  +${e.experience} XP  ·  +${e.gold} Gold`, 'reward');
         break;
       case 'lootDrop':
-        if (e.rarity === 'rare' || e.rarity === 'legendary') this.toasts.show(`★ ${getItem(e.itemId).name} dropped!`, 'rare', 3.5);
+        if (e.rarity === 'rare' || e.rarity === 'legendary') getServices(this).toasts.show(`★ ${getItem(e.itemId).name} dropped!`, 'rare', 3.5);
         break;
       case 'pickup': {
         const item = getItem(e.itemId);
         const rare = e.rarity === 'rare' || e.rarity === 'legendary';
         sfx.play(rare ? 'rarePickup' : 'pickup');
-        this.toasts.show(
+        getServices(this).toasts.show(
           `Obtained ${item.name}${e.quantity > 1 ? ` × ${e.quantity}` : ''}${item.kind === 'weapon' ? '  —  open MENU to equip' : ''}`,
           rare ? 'rare' : 'loot',
           item.kind === 'weapon' ? 4 : 2.4,

@@ -74,8 +74,13 @@ export class Viewport {
     this.apply();
   }
 
-  onChange(fn: (layout: ViewportLayout, safe: SafeArea) => void): void {
+  /** Subscribe to layout changes; returns the unsubscribe function (scenes call it on shutdown). */
+  onChange(fn: (layout: ViewportLayout, safe: SafeArea) => void): () => void {
     this.listeners.push(fn);
+    return () => {
+      const i = this.listeners.indexOf(fn);
+      if (i >= 0) this.listeners.splice(i, 1);
+    };
   }
 
   private measure(): ViewportLayout {

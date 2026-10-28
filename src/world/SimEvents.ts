@@ -5,6 +5,8 @@ import type { Rarity } from '../data/items';
  * One-way notifications from the simulation to presentation (sound, particles,
  * camera). Gameplay never depends on whether these are consumed.
  */
+export type TravelReason = 'exit' | 'death' | 'rest' | 'travel';
+
 export type SimEvent =
   | { type: 'jump'; x: number; y: number }
   | { type: 'land'; x: number; y: number; hard: boolean }
@@ -28,7 +30,14 @@ export type SimEvent =
   | { type: 'lootDrop'; itemId: string; rarity: Rarity; x: number; y: number }
   | { type: 'pickup'; itemId: string; quantity: number; rarity: Rarity; x: number; y: number }
   | { type: 'equip'; weaponId: string }
-  | { type: 'upgrade'; uid: number; itemId: string; level: number; cost: number };
+  | { type: 'upgrade'; uid: number; itemId: string; level: number; cost: number }
+  /** A shrine was activated for the first time. */
+  | { type: 'checkpointActivated'; id: string; name: string; x: number; y: number }
+  /** The player used a shrine (after activating it): the scene opens the shrine menu. */
+  | { type: 'shrine'; id: string; name: string; firstTime: boolean }
+  | { type: 'cacheOpened'; id: string; x: number; y: number; items: readonly { item: string; quantity: number }[]; gold: number; weaponXp: number }
+  /** The simulation asked to leave this region (doorway, death, rest or travel). */
+  | { type: 'travel'; reason: TravelReason };
 
 export class SimEventQueue {
   readonly items: SimEvent[] = [];

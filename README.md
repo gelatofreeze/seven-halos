@@ -2,7 +2,7 @@
 
 A 2D pixel-art dark-fantasy action RPG in the Soulslike tradition. A Creator made seven gods, each given a Halo and a share in shaping the world. They loved one another like siblings until their own choices led to betrayal, centuries of war and mutual destruction. A blind oracle foresees a mortal who gathers the seven Halos, resurrects and reconciles the Seven, and receives an eighth Halo from the Creator, becoming the God and King of Humanity.
 
-This repository holds the game. It currently contains a **playable combat-and-rewards test chamber**: two weapon classes, two enemy types, currencies, randomized loot, a small inventory and browser saves.
+This repository holds the game. It currently contains **the first small, persistent world**: a sanctuary and a forest road joined by doorways, shrine checkpoints with resting and fast travel, a one-time treasure cache, and the combat systems (two weapon classes, two enemy types, currencies, loot, inventory and upgrades), all saved in the browser. The original combat test chamber is still available in development builds.
 
 ## Tech
 Phaser 4 · TypeScript (strict) · Vite · Vitest · npm. Runs in modern mobile and desktop browsers.
@@ -37,14 +37,34 @@ To play on a phone, open the dev server's Network URL on a phone on the same Wi-
 | Drop through platform | ↓/S + Jump | Joystick down + JUMP |
 | Pause menu: equipment, backpack, upgrades (pauses the game) | I, Tab (Esc or I closes; arrows move, Enter selects) | MENU (top right) |
 | Pick up items | walk over them | walk over them |
+| Use a shrine, cache or door (a prompt appears when you're close) | E, Enter | tap the prompt |
 | Debug overlay | ` or F3 | DBG (also shows a dot for each finger) |
 
 Add `?debug=1` to the URL to start with the hitbox/state overlay on. Use `?touch=1` or `?touch=0` to force the touch controls on or off.
 
-## Test chamber
+## The world
+You start just outside the **sanctuary**, a ruined refuge that will become your home base.
+1. Walk right into the hall. Stand at the **shrine** and press **E** (or tap **Light the shrine**). Lit shrines are where you return when you fall.
+2. Using a lit shrine opens its menu:
+   - **Rest:** full health; ordinary enemies return.
+   - **Travel:** go to any other lit shrine.
+   - **Leave.**
+3. Keep walking right, out of the sanctuary, onto the **Forest Road**:
+   - a Sentinel on the forest floor;
+   - a ravine crossed on stepping stones (fall in and climb out on the far side);
+   - a tall tree to climb, with a **treasure cache** at the top (it opens once);
+   - a clearing with a Reaper and another Sentinel;
+   - the **Forest Road Shrine**;
+   - a road that ends at a sealed gate, the way to the first castle (a later update).
+4. Enemies you defeat stay down until you rest or die. If you die, you wake at the last shrine you used, with all your items and currencies.
+5. Everything permanent (lit shrines, the opened cache, items, equipment, currencies, where you were) survives a page reload.
+
+## Test chamber (development builds)
+Open **MENU → Progression → Development tools → Go to the Test Chamber**, or add `?region=test-chamber` to the URL. The same menu button brings you back to the sanctuary.
+
 From left to right:
 1. **Movement course:** the start shrine, 1- and 2-tile steps, one-way platforms, a 3-tile pillar (max jump height), and a 4-tile pit (running jump; falling costs 25 HP).
-2. **Hollow Sentinel arena.**
+2. **Vowcarved Sentinel arena.**
 3. **Corridor and climb:** a low-ceiling corridor, and a one-way climb to a hidden ledge.
 4. **Barrow Reaper arena**, across a 3-tile gap.
 5. **Comparison area**, over a low pillar: a Sentinel holds the floor, and a second Reaper guards a raised ledge that ends at the **armoury altar**.
@@ -73,7 +93,7 @@ It's fragile and breaks posture easily.
   - Drag items within the backpack to rearrange them; the order is saved.
   - **Upgrade** spends Weapon XP to raise the selected weapon one tier (+10% damage per tier for the sword, +9% for the scythe).
   - Weapons can't be changed mid-action. Nothing you pressed before or during the menu fires when you close it.
-- Progress (currencies, items and their order, tiers, equipment) saves automatically in the browser. Saves from update 2B are upgraded automatically: Forge Points become Weapon XP at ×10, and the old save is backed up first.
+- Progress (currencies, items and their order, tiers, equipment, world progress) saves automatically in the browser. Older saves are upgraded automatically and backed up first: from update 2B, Forge Points become Weapon XP at ×10; from 2B.2, everything is kept and you start at the sanctuary.
 
 ### Testing the scythe without farming (test builds only)
 The GitHub Pages preview and `npm run dev` include development tools. A plain `npm run build` (the basis for commercial releases) compiles them out, and `npm run check` verifies that.
@@ -94,6 +114,7 @@ On iPhone, use **Share → Add to Home Screen** for full-screen landscape play. 
 ## Docs
 - [CLAUDE.md](CLAUDE.md): conventions for contributors and AI agents
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/WORLD.md](docs/WORLD.md): regions, shrines and how to add a region
 - [docs/COMBAT.md](docs/COMBAT.md)
 - [docs/ANIMATION.md](docs/ANIMATION.md)
 - [docs/MILESTONES.md](docs/MILESTONES.md)

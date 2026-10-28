@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const MARKERS = ['Grant Mourning Crescent', 'Development tools (test builds only)'];
+const MARKERS = ['Grant Mourning Crescent', 'Development tools (test builds only)', 'Test Chamber — Ruined Shrine', 'Go to the Test Chamber'];
 const dir = 'dist/assets';
 const leaks = [];
 for (const file of readdirSync(dir)) {

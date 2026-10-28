@@ -16,7 +16,7 @@ export interface BenchResult {
 
 /**
  * Reproducible weapon benchmark: the player mashes a pattern against a
- * stationary Hollow Sentinel dummy (health/posture refilled every step so it
+ * stationary Vowcarved Sentinel dummy (health/posture refilled every step so it
  * never dies or staggers) at `distance` px for `seconds`. Stamina limits are
  * real, so DPS reflects stamina throttling.
  */
