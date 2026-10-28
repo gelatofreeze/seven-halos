@@ -28,16 +28,17 @@ export class HitDetection implements HitboxSink {
     this.candidates.length = 0;
   }
 
-  add(owner: Combatant, attack: AttackDefinition, instanceId: number, facing: Facing, x: number, y: number, w: number, h: number): void {
+  add(owner: Combatant, attack: AttackDefinition, instanceId: number, facing: Facing, chargeLevel: number, x: number, y: number, w: number, h: number): void {
     let hb = this.pool[this.count];
     if (!hb) {
-      hb = { owner, attack, instanceId, facing, rect: makeRect() };
+      hb = { owner, attack, instanceId, facing, chargeLevel, rect: makeRect() };
       this.pool.push(hb);
     }
     hb.owner = owner;
     hb.attack = attack;
     hb.instanceId = instanceId;
     hb.facing = facing;
+    hb.chargeLevel = chargeLevel;
     hb.rect.x = x;
     hb.rect.y = y;
     hb.rect.w = w;

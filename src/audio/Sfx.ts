@@ -3,12 +3,32 @@
  * feedback before real audio exists. Replace with recorded assets via
  * Phaser's sound manager later; call sites only use `play(name)`.
  */
-export type SfxName = 'swing' | 'hit' | 'heavyHit' | 'hurt' | 'dodge' | 'jump' | 'land' | 'telegraph' | 'enemySwing' | 'evade' | 'death';
+export type SfxName =
+  | 'swing'
+  | 'heavySwing'
+  | 'hit'
+  | 'heavyHit'
+  | 'hurt'
+  | 'dodge'
+  | 'jump'
+  | 'land'
+  | 'telegraph'
+  | 'enemySwing'
+  | 'evade'
+  | 'death'
+  | 'chargeFull'
+  | 'block'
+  | 'guardBreak'
+  | 'parryAttempt'
+  | 'parry'
+  | 'postureBreak'
+  | 'riposte';
 
 export class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
+  private chargeOsc: { osc: OscillatorNode; gain: GainNode } | null = null;
   muted = false;
 
   /** Must be called from a user gesture on iOS before any sound can play. */
@@ -43,6 +63,40 @@ export class Sfx {
     switch (name) {
       case 'swing':
         this.noiseBurst(t, 0.12, 'bandpass', 1800, 600, 0.35);
+        break;
+      case 'heavySwing':
+        this.noiseBurst(t, 0.24, 'bandpass', 1300, 250, 0.55);
+        this.tone(t, 0.18, 'triangle', 140, 60, 0.15);
+        break;
+      case 'chargeFull':
+        this.tone(t, 0.25, 'sine', 1320, 1320, 0.12);
+        this.tone(t, 0.25, 'sine', 1980, 1980, 0.05);
+        break;
+      case 'block':
+        this.tone(t, 0.12, 'square', 620, 420, 0.12);
+        this.noiseBurst(t, 0.06, 'highpass', 3000, 1500, 0.35);
+        break;
+      case 'guardBreak':
+        this.tone(t, 0.35, 'sawtooth', 300, 70, 0.3);
+        this.noiseBurst(t, 0.3, 'bandpass', 2500, 300, 0.6);
+        break;
+      case 'parryAttempt':
+        this.noiseBurst(t, 0.07, 'bandpass', 3000, 1600, 0.2);
+        break;
+      case 'parry':
+        // Bright metallic ring: the signature "you did it right" sound.
+        this.tone(t, 0.6, 'sine', 1560, 1500, 0.18);
+        this.tone(t, 0.45, 'sine', 2340, 2300, 0.08);
+        this.tone(t, 0.08, 'square', 900, 500, 0.12);
+        break;
+      case 'postureBreak':
+        this.tone(t, 0.9, 'sine', 110, 90, 0.35);
+        this.tone(t, 0.6, 'triangle', 220, 180, 0.12);
+        this.noiseBurst(t, 0.2, 'lowpass', 900, 150, 0.4);
+        break;
+      case 'riposte':
+        this.noiseBurst(t, 0.25, 'lowpass', 2200, 120, 0.8);
+        this.tone(t, 0.4, 'sawtooth', 160, 35, 0.35);
         break;
       case 'enemySwing':
         this.noiseBurst(t, 0.22, 'bandpass', 900, 300, 0.5);
@@ -80,6 +134,35 @@ export class Sfx {
         this.noiseBurst(t, 0.6, 'lowpass', 900, 80, 0.4);
         break;
     }
+  }
+
+  /** Rising tone while a heavy attack charges; `seconds` is the time to full charge. */
+  startCharge(seconds: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || this.muted || ctx.state !== 'running') return;
+    this.stopCharge();
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.linearRampToValueAtTime(660, t + seconds);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.09, t + 0.08);
+    osc.connect(gain).connect(this.master);
+    osc.start(t);
+    this.chargeOsc = { osc, gain };
+  }
+
+  stopCharge(): void {
+    const c = this.chargeOsc;
+    if (!c || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    c.gain.gain.cancelScheduledValues(t);
+    c.gain.gain.setValueAtTime(c.gain.gain.value, t);
+    c.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    c.osc.stop(t + 0.06);
+    this.chargeOsc = null;
   }
 
   private tone(t: number, dur: number, type: OscillatorType, f0: number, f1: number, vol: number): void {

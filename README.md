@@ -27,9 +27,12 @@ To play on a phone, open the dev server's Network URL on a phone on the same Wi-
 | Action | Keyboard | Touch |
 |---|---|---|
 | Move | A/D or ←/→ | Joystick: put a thumb anywhere on the left side of the screen |
-| Jump (hold for higher) | Space, K, W, ↑, Z | JUMP |
-| Attack | J, X | ATK |
-| Dodge roll | L, C, Shift | ROLL |
+| Jump (hold for higher) | Space, W, ↑, Z | JUMP |
+| Light attack (riposte when an enemy shows the gold ◆) | J, X | ATK |
+| Heavy attack (hold to charge) | K, V | HEAVY |
+| Dodge roll | L, C | ROLL |
+| Guard (hold) | Shift, O | GUARD |
+| Parry | P, F | PARRY |
 | Drop through platform | ↓/S + Jump | Joystick down + JUMP |
 | Debug overlay | ` or F3 | DBG (also shows a dot for each finger) |
 
@@ -38,7 +41,13 @@ Add `?debug=1` to the URL to start with the hitbox/state overlay on. Use `?touch
 ## Test chamber
 From left to right: the start shrine, 1- and 2-tile steps, one-way platforms, a 3-tile pillar (max jump height), a 4-tile pit (running jump; falling costs 25 HP), the Hollow Sentinel arena, a low-ceiling corridor, and a one-way climb to a hidden ledge.
 
-The Sentinel walks into range and raises its greatsword: a long windup, an eye flare, a glint and a rising tone. Roll through the swing (i-frames) and punish it during its long recovery. It respawns 4 s after it dies.
+The Sentinel walks into range and raises its greatsword: a long windup, an eye flare, a glint and a rising tone. Sometimes it holds the sword at the top longer (delayed cleave), so react to the **glint**, not the windup. You can:
+- **roll** through the swing and punish it during its long recovery;
+- **guard** it, at a heavy stamina cost (run out and your guard breaks);
+- **parry** it just before it lands, then press attack for a **riposte**;
+- break its **posture** (gold bar under its health) with heavy and charged attacks for another riposte opening.
+
+It respawns 4 s after it dies. See [docs/COMBAT.md](docs/COMBAT.md) for all the numbers.
 
 ## Phone preview via GitHub Pages
 `.github/workflows/deploy-pages.yml` builds and publishes `dist/` on every push to `main`, and can also be run manually.

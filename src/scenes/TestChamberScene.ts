@@ -110,7 +110,8 @@ export class TestChamberScene extends Phaser.Scene {
     this.sim.events.drain(this.handleEvent);
 
     this.playerView.update(alpha, dt);
-    for (const v of this.enemyViews) v.update(alpha, dt);
+    const riposteTarget = this.sim.player.findRiposteTarget();
+    this.enemyViews.forEach((v, i) => v.update(alpha, dt, riposteTarget === this.sim.enemies[i]));
     this.updateCamera(alpha, dt);
     this.backdrop.update(this.cameras.main, dt);
     this.levelRenderer.update(dt);
@@ -142,13 +143,38 @@ export class TestChamberScene extends Phaser.Scene {
         sfx.play('dodge');
         break;
       case 'attack':
-        sfx.play(e.faction === 'player' ? 'swing' : 'enemySwing');
+        sfx.play(e.faction === 'enemy' ? 'enemySwing' : e.kind === 'heavy' ? 'heavySwing' : 'swing');
+        break;
+      case 'chargeStart': {
+        const charge = this.sim.player.attack.attack?.charge;
+        if (charge) sfx.startCharge(charge.maxFrames / 60);
+        break;
+      }
+      case 'chargeFull':
+        sfx.play('chargeFull');
+        break;
+      case 'chargeEnd':
+        sfx.stopCharge();
+        break;
+      case 'block':
+        sfx.play(e.guardBroken ? 'guardBreak' : 'block');
+        break;
+      case 'parryAttempt':
+        sfx.play('parryAttempt');
+        break;
+      case 'parry':
+        sfx.play('parry');
+        break;
+      case 'postureBreak':
+        sfx.play('postureBreak');
+        break;
+      case 'riposte':
         break;
       case 'telegraph':
         sfx.play('telegraph');
         break;
       case 'hit':
-        sfx.play(e.targetFaction === 'player' ? 'hurt' : e.poiseBroken ? 'heavyHit' : 'hit');
+        sfx.play(e.targetFaction === 'player' ? 'hurt' : e.kind === 'riposte' ? 'riposte' : e.kind === 'heavy' ? 'heavyHit' : 'hit');
         break;
       case 'evade':
         sfx.play('evade');

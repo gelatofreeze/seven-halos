@@ -1,6 +1,6 @@
 # Milestones
 
-## Phase 1 — Foundation (this branch)
+## Phase 1 — Foundation ✓
 - [x] Phaser 4 + strict TypeScript + Vite + Vitest
 - [x] Fixed-timestep deterministic simulation, decoupled from rendering
 - [x] Movement: acceleration/deceleration, variable jump, coyote time, jump buffer, apex hang, fast fall, one-way platforms, hard landings
@@ -12,7 +12,19 @@
 - [ ] Hands-on feel tuning on real iPhone/Android hardware
 
 ## Phase 2 — Combat depth
-Heavy attacks, guard and parry with posture, running and jumping attacks, a second weapon class with a different moveset, enemy AI variety (ranged, aggressive), lock-on-free target selection.
+### Update 2A — Advanced combat (done, pending device playtest)
+- [x] Heavy attack and charged heavy (hold, 42-frame max, auto-release), charge visuals and audio
+- [x] Guard with stamina cost, chip damage, block-stun, guard breaks
+- [x] Parry with startup / window / whiff recovery, frontal only
+- [x] Posture with decay, hyper-armour, posture breaks
+- [x] Riposte: range, invulnerable animation, once per opening
+- [x] Sentinel: delayed cleave variant, adapts after being parried, punishes guard breaks
+- [x] Six-button touch layout + keyboard bindings; DOM-free `TouchRouter` with tests
+- [x] Parry/guard/posture/riposte feedback (rings, sparks, sounds, opening marker, posture bar)
+- [ ] Hand playtest on iPhone; tune values listed in docs/COMBAT.md
+
+### Next
+Running and jumping attacks, a second weapon class with a different moveset, a second enemy type (ranged or aggressive), player poise/armour, shields as equipment.
 
 ## Phase 3 — RPG layer
 Classes and starting kits, attribute levelling with Experience, Gold vendors, Forge Point weapon upgrades, randomized loot tables with rare weapon drops, inventory/equipment UI, saving.

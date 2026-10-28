@@ -74,6 +74,10 @@ export class InputHub implements InputProvider {
     // A tap shorter than one step still counts as held for that step (minimum hop).
     out.jumpHeld = this.isHeld('jump') || out.jumpPressed;
     out.attackPressed = this.consumePress('attack');
+    out.heavyPressed = this.consumePress('heavy');
+    out.heavyHeld = this.isHeld('heavy') || out.heavyPressed;
     out.dodgePressed = this.consumePress('dodge');
+    out.guardHeld = this.isHeld('guard');
+    out.parryPressed = this.consumePress('parry');
   }
 }

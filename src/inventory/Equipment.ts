@@ -17,6 +17,14 @@ export class Equipment {
     return getAttack(this.weapon.moveset.light);
   }
 
+  heavyAttack(): AttackDefinition {
+    return getAttack(this.weapon.moveset.heavy);
+  }
+
+  riposteAttack(): AttackDefinition {
+    return getAttack(this.weapon.moveset.riposte);
+  }
+
   private static lookup(id: string): WeaponDefinition {
     const weapon = WEAPONS[id];
     if (!weapon) throw new Error(`Unknown weapon: ${id}`);

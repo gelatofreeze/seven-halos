@@ -5,6 +5,7 @@ import { Sentinel } from '../entities/enemy/Sentinel';
 import { Player } from '../entities/player/Player';
 import { createInputFrame, type InputProvider } from '../input/InputActions';
 import { CollisionWorld } from '../physics/CollisionWorld';
+import { seeded } from '../core/random';
 import type { LevelData } from './Level';
 import { SimEventQueue } from './SimEvents';
 
@@ -22,8 +23,14 @@ export class Simulation {
   /** Total fixed steps advanced, including hit-stop steps. */
   tick = 0;
   private readonly input = createInputFrame();
+  /** Deterministic randomness for AI decisions; same seed, same fight. */
+  readonly random: () => number;
 
-  constructor(readonly level: LevelData) {
+  constructor(
+    readonly level: LevelData,
+    seed = 7,
+  ) {
+    this.random = seeded(seed);
     this.world = new CollisionWorld(level.solids, { x: 0, y: 0, w: level.widthPx, h: level.heightPx });
     this.combat = new CombatSystem(this.events);
     this.player = new Player(this.world, this.events, level.playerSpawn.x, level.playerSpawn.y);
@@ -31,10 +38,11 @@ export class Simulation {
     for (const spawn of level.enemySpawns) {
       const def = ENEMIES[spawn.enemyId];
       if (!def) throw new Error(`Unknown enemy: ${spawn.enemyId}`);
-      const enemy = new Sentinel(def, this.world, this.events, this.player, spawn.x, spawn.y);
+      const enemy = new Sentinel(def, this.world, this.events, this.player, spawn.x, spawn.y, this.random);
       this.enemies.push(enemy);
       this.combatants.push(enemy);
     }
+    this.player.riposteTargets = this.enemies;
   }
 
   /** True while the simulation is frozen by hit-stop. */
