@@ -174,6 +174,29 @@ function playerPoses(): Map<number, Pose> {
   poses.set(F.hurt[1], { lean: -2, weapon: 1.5, front: [3, 0], back: [-4, 0], flare: 2 });
   poses.set(F.dead[0], { crouch: 6, lean: 3, weapon: 1.9, front: [4, 0], back: [-3, 0] });
   poses.set(F.dead[1], { crouch: 3, weapon: 1.6, front: [3, 0], back: [-3, 0], rotate: -Math.PI / 2, pivot: 1 });
+  // Heavy: big wind-up behind the head, a hold, then a two-handed overhead slam into the ground.
+  const H = F.heavy;
+  poses.set(H.startup[0], { lean: -2, crouch: 1, weapon: -2.4, reach: 4, front: [5, 0], back: [-5, 0], flare: 1 });
+  poses.set(H.startup[1], { lean: -3, crouch: 2, weapon: -2.9, reach: 4, front: [5, 0], back: [-6, 0], flare: 2 });
+  poses.set(H.charge[0], { lean: -3, crouch: 3, weapon: -3.05, reach: 4, front: [6, 0], back: [-6, 0], flare: 2 });
+  poses.set(H.charge[1], { lean: -3, crouch: 3, weapon: -3.0, reach: 4, front: [6, 0], back: [-6, 0], flare: 3 });
+  poses.set(H.active[0], { lean: 4, crouch: 2, weapon: -1.0, reach: 8, front: [7, 0], back: [-5, 0], smear: [-2.9, -0.6], flare: 3 });
+  poses.set(H.active[1], { lean: 5, crouch: 5, weapon: 0.9, reach: 8, front: [7, 0], back: [-6, 0], smear: [-1.8, 1.0], flare: 2 });
+  poses.set(H.recovery[0], { lean: 5, crouch: 6, weapon: 1.25, reach: 8, front: [7, 0], back: [-6, 0] });
+  poses.set(H.recovery[1], { lean: 3, crouch: 3, weapon: 1.15, reach: 7, front: [5, 0], back: [-5, 0] });
+  // Guard: blade raised across the body.
+  poses.set(F.guard[0], { lean: -1, crouch: 2, weapon: -1.25, reach: 4, front: [4, 0], back: [-5, 0] });
+  poses.set(F.guardImpact[0], { lean: -3, crouch: 3, weapon: -1.45, reach: 3, front: [3, 0], back: [-6, 0], flare: 2 });
+  // Parry: a quick outward flick of the blade.
+  poses.set(F.parry.startup[0], { lean: -1, weapon: -0.4, reach: 4, front: [4, 0], back: [-4, 0] });
+  poses.set(F.parry.window[0], { lean: 2, weapon: -1.1, reach: 7, front: [5, 0], back: [-4, 0], smear: [-1.6, -0.2] });
+  poses.set(F.parry.recovery[0], { lean: 3, weapon: -1.6, reach: 7, front: [5, 0], back: [-4, 0] });
+  // Riposte: draw back, then a full-length thrust.
+  poses.set(F.riposte.startup[0], { lean: -2, crouch: 2, weapon: 0.1, reach: 2, front: [5, 0], back: [-5, 0] });
+  poses.set(F.riposte.startup[1], { lean: -3, crouch: 3, weapon: 0.05, reach: 1, front: [5, 0], back: [-6, 0], flare: 2 });
+  poses.set(F.riposte.active[0], { lean: 6, crouch: 3, weapon: 0.05, reach: 10, front: [9, 0], back: [-6, 0], flare: 4 });
+  poses.set(F.riposte.recovery[0], { lean: 3, crouch: 2, weapon: 0.6, reach: 8, front: [6, 0], back: [-5, 0] });
+  poses.set(F.guardBroken[0], { lean: -4, crouch: 3, weapon: 2.1, reach: 6, front: [2, 1], back: [-6, 0], flare: 4 });
   return poses;
 }
 
@@ -259,6 +282,10 @@ function sentinelPoses(): Map<number, Pose> {
   poses.set(F.dead[1], { crouch: 9, weapon: 1.7, front: [6, 0], back: [-6, 0], eye: 0 });
   poses.set(F.dead[2], { crouch: 9, weapon: 1.5, front: [6, 0], back: [-6, 0], rotate: -0.8, pivot: 3, eye: 0 });
   poses.set(F.dead[3], { crouch: 9, weapon: 1.4, front: [6, 0], back: [-6, 0], rotate: -1.45, pivot: 2, eye: 0 });
+  poses.set(F.broken[0], { lean: 3, crouch: 9, weapon: 1.9, reach: 6, front: [7, 0], back: [-3, 4], eye: 1 });
+  poses.set(F.broken[1], { lean: 3, crouch: 10, weapon: 1.95, reach: 6, front: [7, 0], back: [-3, 4], eye: 1 });
+  poses.set(F.riposted[0], { crouch: 9, weapon: 1.6, front: [6, 0], back: [-6, 0], rotate: -0.9, pivot: 3, eye: 0 });
+  poses.set(F.riposted[1], { lean: 2, crouch: 8, weapon: 1.7, front: [6, 0], back: [-4, 3], eye: 1 });
   return poses;
 }
 

@@ -1,12 +1,6 @@
 import { TOUCH_LAYOUT, type TouchButtonConfig, type TouchLayoutConfig } from '../config/controls';
-import type { ActionName } from './InputActions';
 import type { InputHub } from './InputHub';
-import { joystickOutput, type JoystickOutput } from './joystick';
-
-const STICK_SOURCE = 'touch:stick';
-const BUTTON_SOURCE = 'touch:button';
-
-type Binding = { kind: 'stick'; baseX: number; baseY: number; x: number; y: number } | { kind: 'button'; button: ButtonState };
+import { TouchRouter, type ButtonHitArea, type TouchPoint } from './TouchRouter';
 
 interface ButtonState {
   config: TouchButtonConfig;
@@ -27,21 +21,19 @@ interface ButtonState {
 export class TouchControls {
   readonly root: HTMLElement;
   private readonly buttons: ButtonState[] = [];
-  private readonly bindings = new Map<number, Binding>();
-  private readonly heldButtons = new Set<ActionName>();
-  private stickDown = false;
+  private readonly router: TouchRouter;
   private readonly stickBase: HTMLElement;
   private readonly stickKnob: HTMLElement;
-  private readonly stickOut: JoystickOutput = { x: 0, down: false };
   private readonly debugDots = new Map<number, HTMLElement>();
 
   constructor(
-    private readonly hub: InputHub,
+    hub: InputHub,
     parent: HTMLElement,
     extraButtons: readonly { label: string; onPress: () => void }[] = [],
     private readonly showTouches: () => boolean = () => false,
     private readonly layout: TouchLayoutConfig = TOUCH_LAYOUT,
   ) {
+    this.router = new TouchRouter(hub, layout);
     this.root = document.createElement('div');
     this.root.className = 'touch-layer';
     parent.appendChild(this.root);
@@ -110,90 +102,36 @@ export class TouchControls {
     this.stickKnob.style.transform = 'translate(-50%, -50%)';
   }
 
-  private nearestButton(x: number, y: number): ButtonState | undefined {
-    let best: ButtonState | undefined;
-    let bestDist = Infinity;
-    for (const b of this.buttons) {
+  /** Button hit circles, read from the DOM at touch time so rotation can't leave stale geometry. */
+  private hitAreas(): ButtonHitArea[] {
+    return this.buttons.map((b) => {
       const r = b.el.getBoundingClientRect();
-      const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
-      if (d <= (r.width / 2) * this.layout.hitRadiusScale && d < bestDist) {
-        best = b;
-        bestDist = d;
-      }
-    }
-    return best;
-  }
-
-  private hasStick(): boolean {
-    for (const b of this.bindings.values()) if (b.kind === 'stick') return true;
-    return false;
+      return { action: b.config.action, cx: r.left + r.width / 2, cy: r.top + r.height / 2, radius: r.width / 2 };
+    });
   }
 
   private readonly onTouch = (e: TouchEvent): void => {
     e.preventDefault();
-    const j = this.layout.joystick;
-
-    if (e.type === 'touchstart') {
-      for (const t of Array.from(e.changedTouches)) {
-        if (this.bindings.has(t.identifier)) continue;
-        const button = this.nearestButton(t.clientX, t.clientY);
-        if (button) {
-          this.bindings.set(t.identifier, { kind: 'button', button });
-        } else if (t.clientX < window.innerWidth * j.zoneWidth && !this.hasStick()) {
-          this.bindings.set(t.identifier, { kind: 'stick', baseX: t.clientX, baseY: t.clientY, x: t.clientX, y: t.clientY });
-        }
-      }
-    } else if (e.type === 'touchmove') {
-      for (const t of Array.from(e.changedTouches)) {
-        const b = this.bindings.get(t.identifier);
-        if (b?.kind !== 'stick') continue;
-        b.x = t.clientX;
-        b.y = t.clientY;
-        // Drag the base along when the finger travels past the rim.
-        const dx = b.x - b.baseX;
-        const dy = b.y - b.baseY;
-        const dist = Math.hypot(dx, dy);
-        if (dist > j.radius) {
-          b.baseX = b.x - (dx / dist) * j.radius;
-          b.baseY = b.y - (dy / dist) * j.radius;
-        }
-      }
-    } else {
-      for (const t of Array.from(e.changedTouches)) this.bindings.delete(t.identifier);
-    }
-
-    // Reconcile: drop any binding whose finger is no longer on the screen.
-    if (this.bindings.size > 0) {
-      const live = new Set<number>();
-      for (const t of Array.from(e.touches)) live.add(t.identifier);
-      for (const id of this.bindings.keys()) if (!live.has(id)) this.bindings.delete(id);
-    }
-    this.sync();
+    const changed: TouchPoint[] = Array.from(e.changedTouches, (t) => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
+    if (e.type === 'touchstart') this.router.begin(changed, this.hitAreas(), window.innerWidth);
+    else if (e.type === 'touchmove') this.router.move(changed);
+    else this.router.end(changed);
+    this.router.reconcile(new Set(Array.from(e.touches, (t) => t.identifier)));
+    this.router.sync();
+    this.render();
     this.drawDebug(e);
   };
 
-  /** Push the aggregate state of all fingers to the hub, emitting only transitions. */
-  private sync(): void {
-    const held = new Set<ActionName>();
-    let stick: Extract<Binding, { kind: 'stick' }> | undefined;
-    for (const b of this.bindings.values()) {
-      if (b.kind === 'button') held.add(b.button.config.action);
-      else stick = b;
-    }
-    for (const action of held) if (!this.heldButtons.has(action)) this.hub.press(action, BUTTON_SOURCE);
-    for (const action of this.heldButtons) if (!held.has(action)) this.hub.release(action, BUTTON_SOURCE);
-    this.heldButtons.clear();
-    for (const action of held) this.heldButtons.add(action);
-
+  private render(): void {
+    const held = this.router.heldActions;
     for (const b of this.buttons) {
       const active = held.has(b.config.action);
       b.el.style.opacity = String(active ? this.layout.activeOpacity : this.layout.idleOpacity);
       b.el.classList.toggle('active', active);
     }
-
     const j = this.layout.joystick;
+    const stick = this.router.stick;
     if (stick) {
-      joystickOutput(stick.x - stick.baseX, stick.y - stick.baseY, j, this.stickOut);
       const s = this.stickBase.style;
       s.left = `${stick.baseX - j.radius}px`;
       s.bottom = '';
@@ -201,14 +139,8 @@ export class TouchControls {
       s.opacity = String(this.layout.activeOpacity);
       this.stickKnob.style.transform = `translate(calc(-50% + ${stick.x - stick.baseX}px), calc(-50% + ${stick.y - stick.baseY}px))`;
     } else {
-      this.stickOut.x = 0;
-      this.stickOut.down = false;
       this.placeStickAtRest();
     }
-    this.hub.setAxis(STICK_SOURCE, this.stickOut.x);
-    if (this.stickOut.down && !this.stickDown) this.hub.press('down', STICK_SOURCE);
-    else if (!this.stickOut.down && this.stickDown) this.hub.release('down', STICK_SOURCE);
-    this.stickDown = this.stickOut.down;
   }
 
   /** Optional on-screen dots for every finger (debug), to diagnose device touch issues. */
@@ -225,8 +157,8 @@ export class TouchControls {
           this.root.appendChild(dot);
           this.debugDots.set(t.identifier, dot);
         }
-        const b = this.bindings.get(t.identifier);
-        dot.textContent = b ? (b.kind === 'stick' ? 'stick' : b.button.config.action) : '–';
+        const b = this.router.bindings.get(t.identifier);
+        dot.textContent = b ? (b.kind === 'stick' ? 'stick' : b.action) : '–';
         dot.style.left = `${t.clientX}px`;
         dot.style.top = `${t.clientY}px`;
       }
@@ -240,7 +172,7 @@ export class TouchControls {
   }
 
   releaseAll(): void {
-    this.bindings.clear();
-    this.sync();
+    this.router.releaseAll();
+    this.render();
   }
 }

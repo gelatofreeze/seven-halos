@@ -5,9 +5,12 @@ export const KEY_BINDINGS: Record<ActionName, readonly string[]> = {
   left: ['ArrowLeft', 'KeyA'],
   right: ['ArrowRight', 'KeyD'],
   down: ['ArrowDown', 'KeyS'],
-  jump: ['Space', 'KeyK', 'KeyW', 'ArrowUp', 'KeyZ'],
+  jump: ['Space', 'KeyW', 'ArrowUp', 'KeyZ'],
   attack: ['KeyJ', 'KeyX'],
-  dodge: ['KeyL', 'KeyC', 'ShiftLeft', 'ShiftRight'],
+  heavy: ['KeyK', 'KeyV'],
+  dodge: ['KeyL', 'KeyC'],
+  guard: ['ShiftLeft', 'ShiftRight', 'KeyO'],
+  parry: ['KeyP', 'KeyF'],
 };
 
 export const DEBUG_TOGGLE_KEYS: readonly string[] = ['Backquote', 'F3'];
@@ -62,7 +65,7 @@ export interface TouchLayoutConfig {
 
 export const TOUCH_LAYOUT: TouchLayoutConfig = {
   visibility: 'auto',
-  hitRadiusScale: 1.6,
+  hitRadiusScale: 1.3,
   edgeMargin: 14,
   idleOpacity: 0.42,
   activeOpacity: 0.85,
@@ -75,9 +78,14 @@ export const TOUCH_LAYOUT: TouchLayoutConfig = {
     restX: 96,
     restY: 92,
   },
+  // Inner arc (closest to the thumb's resting corner): jump, light attack, roll.
+  // Outer arc: heavy (hold to charge), guard (hold), parry (tap).
   buttons: [
-    { action: 'jump', label: 'JUMP', x: 46, y: 50, size: 80 },
-    { action: 'attack', label: 'ATK', x: 138, y: 70, size: 70 },
-    { action: 'dodge', label: 'ROLL', x: 72, y: 142, size: 64 },
+    { action: 'jump', label: 'JUMP', x: 46, y: 48, size: 76 },
+    { action: 'attack', label: 'ATK', x: 132, y: 58, size: 66 },
+    { action: 'dodge', label: 'ROLL', x: 60, y: 132, size: 60 },
+    { action: 'heavy', label: 'HEAVY', x: 210, y: 84, size: 58 },
+    { action: 'guard', label: 'GUARD', x: 140, y: 146, size: 58 },
+    { action: 'parry', label: 'PARRY', x: 212, y: 166, size: 52 },
   ],
 };

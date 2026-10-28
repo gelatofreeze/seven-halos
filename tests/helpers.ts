@@ -11,7 +11,9 @@ export class ScriptedInput implements InputProvider {
     Object.assign(out, this.frame);
     this.frame.jumpPressed = false;
     this.frame.attackPressed = false;
+    this.frame.heavyPressed = false;
     this.frame.dodgePressed = false;
+    this.frame.parryPressed = false;
   }
 }
 
@@ -35,4 +37,17 @@ export function run(sim: Simulation, input: ScriptedInput, steps: number, each?:
     each?.(i);
     sim.step(DT, input);
   }
+}
+
+/**
+ * Player at column 5, Hollow Sentinel at column 8: within aggro range, it walks
+ * into range and attacks. The attack is forced (standard cleave by default) so
+ * timing-based tests are deterministic.
+ */
+export function engagedSim(attack: string | null = 'sentinel.cleave') {
+  const sim = flatSim({ enemyCol: 8 });
+  const input = new ScriptedInput();
+  const enemy = sim.enemies[0]!;
+  enemy.forcedAttack = attack;
+  return { sim, input, enemy, player: sim.player };
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PARRY } from '../../config/combat';
 import { PLAYER_MOVEMENT } from '../../config/movement';
 import { lerp } from '../../core/math';
 import type { Player } from '../../entities/player/Player';
@@ -16,6 +17,10 @@ export class PlayerView {
   readonly sprite: Phaser.GameObjects.Sprite;
   private readonly light: Phaser.GameObjects.Image;
   private readonly ghosts: Phaser.GameObjects.Sprite[] = [];
+  /** Charge glow gathering around the raised blade. */
+  private readonly chargeGlow: Phaser.GameObjects.Image;
+  /** Thin arc in front of the player while the guard is raised. */
+  private readonly guardArc: Phaser.GameObjects.Graphics;
   private ghostIndex = 0;
   private lastGhostFrame = -1;
   private time = 0;
@@ -31,6 +36,8 @@ export class PlayerView {
     }
     this.light = scene.add.image(0, 0, TEX.glow).setBlendMode(Phaser.BlendModes.ADD).setTint(0x8fa8ff).setAlpha(0.18).setScale(2.2).setDepth(9);
     this.sprite = scene.add.sprite(0, 0, TEX.player, 0).setOrigin(0.5, PLAYER_SHEET.footY / PLAYER_SHEET.frameHeight).setDepth(10);
+    this.chargeGlow = scene.add.image(0, 0, TEX.glow).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(11);
+    this.guardArc = scene.add.graphics().setDepth(11);
   }
 
   /** Interpolated feet position. */
@@ -77,13 +84,42 @@ export class PlayerView {
       }
       case 'attack': {
         const runner = p.attack;
-        const set = runner.attack?.id === 'sword.light.2' ? PLAYER_FRAMES.attack2 : PLAYER_FRAMES.attack1;
         const phase = runner.phase === 'done' ? 'recovery' : runner.phase;
         s.anims.stop();
-        s.setFrame(frameAt(set[phase], runner.phaseProgress));
+        if (runner.attack?.kind === 'heavy') {
+          const H = PLAYER_FRAMES.heavy;
+          if (runner.charging) s.setFrame(H.charge[Math.floor(this.time * 10) % 2]!);
+          else s.setFrame(frameAt(H[phase], runner.phaseProgress));
+        } else {
+          const set = runner.attack?.id === 'sword.light.2' ? PLAYER_FRAMES.attack2 : PLAYER_FRAMES.attack1;
+          s.setFrame(frameAt(set[phase], runner.phaseProgress));
+        }
         break;
       }
+      case 'riposte': {
+        const runner = p.attack;
+        const phase = runner.phase === 'done' ? 'recovery' : runner.phase;
+        s.anims.stop();
+        s.setFrame(frameAt(PLAYER_FRAMES.riposte[phase], runner.phaseProgress));
+        break;
+      }
+      case 'guard':
+        s.anims.stop();
+        s.setFrame(p.blockStunFrames > 0 ? PLAYER_FRAMES.guardImpact[0] : PLAYER_FRAMES.guard[0]);
+        break;
+      case 'parry': {
+        const f = p.actionFrame;
+        const P = PLAYER_FRAMES.parry;
+        s.anims.stop();
+        s.setFrame(f < PARRY.startupFrames ? P.startup[0] : f < PARRY.startupFrames + PARRY.windowFrames ? P.window[0] : P.recovery[0]);
+        break;
+      }
+      case 'guardBroken':
+        s.anims.play('player.guardBroken', true);
+        break;
     }
+    this.updateChargeGlow(x, y);
+    this.updateGuardArc(x, y);
     if (p.state !== 'dodge') this.lastGhostFrame = -1;
 
     // Post-hit grace flicker
@@ -94,6 +130,39 @@ export class PlayerView {
       g.alpha -= dt * 3;
       if (g.alpha <= 0) g.setVisible(false);
     }
+  }
+
+  private updateChargeGlow(x: number, y: number): void {
+    const p = this.player;
+    const r = p.attack;
+    if (!p.fsm.is('attack') || !r.charging) {
+      this.chargeGlow.setVisible(false);
+      return;
+    }
+    const level = r.chargeLevel;
+    const full = level >= 1;
+    const pulse = full ? 0.15 * Math.sin(this.time * 40) : 0;
+    this.chargeGlow
+      .setVisible(true)
+      .setPosition(x - p.facing * 9, y - 36)
+      .setTint(full ? 0xffffff : 0xffc46b)
+      .setScale(0.25 + level * 0.75 + pulse)
+      .setAlpha(0.35 + level * 0.55);
+  }
+
+  private updateGuardArc(x: number, y: number): void {
+    const p = this.player;
+    const g = this.guardArc;
+    g.clear();
+    if (!p.isGuardRaised()) return;
+    const impact = p.blockStunFrames > 0;
+    const cx = x + p.facing * 2;
+    const cy = y - 14;
+    const a = p.facing > 0 ? 0 : Math.PI;
+    g.lineStyle(1, impact ? 0xfff3c4 : 0x9fc8ff, impact ? 0.95 : 0.55);
+    g.beginPath();
+    g.arc(cx, cy, 15, a - 1.0, a + 1.0, false);
+    g.strokePath();
   }
 
   private spawnGhost(x: number, y: number): void {

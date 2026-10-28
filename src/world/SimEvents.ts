@@ -1,4 +1,4 @@
-import type { Faction } from '../combat/types';
+import type { AttackKind, Faction } from '../combat/types';
 
 /**
  * One-way notifications from the simulation to presentation (sound, particles,
@@ -8,9 +8,18 @@ export type SimEvent =
   | { type: 'jump'; x: number; y: number }
   | { type: 'land'; x: number; y: number; hard: boolean }
   | { type: 'dodge'; x: number; y: number; facing: number }
-  | { type: 'attack'; faction: Faction; attackId: string; x: number; y: number; facing: number }
+  /** First active frame of an attack (swing). */
+  | { type: 'attack'; faction: Faction; kind: AttackKind; attackId: string; x: number; y: number; facing: number; chargeLevel: number }
+  | { type: 'chargeStart'; x: number; y: number }
+  | { type: 'chargeFull'; x: number; y: number }
+  | { type: 'chargeEnd' }
   | { type: 'telegraph'; x: number; y: number; facing: number }
-  | { type: 'hit'; targetFaction: Faction; x: number; y: number; damage: number; poiseBroken: boolean; facing: number }
+  | { type: 'hit'; targetFaction: Faction; kind: AttackKind; x: number; y: number; damage: number; facing: number }
+  | { type: 'block'; x: number; y: number; guardBroken: boolean; facing: number }
+  | { type: 'parryAttempt'; x: number; y: number }
+  | { type: 'parry'; x: number; y: number }
+  | { type: 'postureBreak'; x: number; y: number }
+  | { type: 'riposte'; x: number; y: number }
   | { type: 'evade'; x: number; y: number }
   | { type: 'death'; faction: Faction; x: number; y: number }
   | { type: 'respawn'; faction: Faction; x: number; y: number };

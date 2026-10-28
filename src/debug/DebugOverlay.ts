@@ -64,7 +64,7 @@ export class DebugOverlay {
       for (const e of sim.enemies) {
         if (e.fsm.is('attack') && e.attack.phase === 'startup') {
           // Preview where the telegraphed strike will land.
-          const spec = e.attackDef.hitboxes[0];
+          const spec = e.currentAttack.hitboxes[0];
           if (spec) {
             const x = e.facing === 1 ? e.body.footX + spec.x : e.body.footX - spec.x - spec.w;
             g.lineStyle(1, 0xff9f1c, 0.8).strokeRect(x + 0.5, e.body.footY + spec.y + 0.5, spec.w - 1, spec.h - 1);
@@ -84,8 +84,13 @@ export class DebugOverlay {
         `pos ${b.footX.toFixed(1)}, ${b.footY.toFixed(1)}  vel ${b.vx.toFixed(0)}, ${b.vy.toFixed(0)}`,
         `grounded ${b.grounded}  coyote ${(p.coyoteTimer * 1000).toFixed(0)}ms  jumpBuf ${(p.jumpBuffer * 1000).toFixed(0)}ms`,
         `invuln ${p.isInvulnerable()}  hp ${p.health.current}/${p.health.max}  st ${p.stamina.current.toFixed(0)}`,
-        p.attack.attack ? `attack ${p.attack.attack.id} ${p.attack.phase} f${p.attack.frame}` : '',
-        e ? `sentinel ${e.fsm.current}${e.fsm.is('attack') ? ` ${e.attack.phase} f${e.attack.frame}` : ''}  hp ${e.health.current}  poise ${e.poise.current}` : '',
+        p.attack.attack
+          ? `attack ${p.attack.attack.id} ${p.attack.phase} f${p.attack.frame}${p.attack.attack.charge ? `  charge ${(p.attack.chargeLevel * 100).toFixed(0)}%` : ''}`
+          : '',
+        `defense ${p.defense().mode}${p.blockStunFrames > 0 ? `  blockstun ${p.blockStunFrames}` : ''}`,
+        e
+          ? `sentinel ${e.fsm.current}${e.fsm.is('attack') ? ` ${e.currentAttack.id} ${e.attack.phase} f${e.attack.frame}` : ''}  hp ${e.health.current}  posture ${e.posture.current.toFixed(0)}${e.canBeRiposted() ? '  RIPOSTE' : ''}`
+          : '',
       ]
         .filter(Boolean)
         .join('\n');

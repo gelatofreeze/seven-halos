@@ -67,12 +67,13 @@ export class Stamina {
     this.delay = this.current <= 0 ? this.tuning.exhaustedRegenDelay : this.tuning.regenDelay;
   }
 
-  update(dt: number, busy: boolean): void {
+  /** `regenMultiplier` scales regeneration (0 while attacking, reduced while guarding). */
+  update(dt: number, regenMultiplier = 1): void {
     if (this.delay > 0) {
       this.delay = Math.max(0, this.delay - dt);
       return;
     }
-    const rate = this.tuning.regenRate * (busy ? this.tuning.busyRegenMultiplier : 1);
+    const rate = this.tuning.regenRate * regenMultiplier;
     this.current = Math.min(this.tuning.max, this.current + rate * dt);
   }
 
@@ -82,36 +83,44 @@ export class Stamina {
   }
 }
 
-/** Poise: accumulated poise damage above the threshold breaks the target into hitstun. */
-export class Poise {
-  current: number;
-  private sinceHit = 0;
+export interface PostureTuning {
+  max: number;
+  /** Seconds without posture damage before it starts to recover. */
+  regenDelay: number;
+  /** Posture recovered per second once recovering. */
+  regenRate: number;
+}
 
-  constructor(
-    public max: number,
-    private readonly resetDelay: number,
-  ) {
-    this.current = max;
+/**
+ * Posture: how close a combatant is to losing its footing. It fills with
+ * posture damage and drains back when the pressure stops, so it rewards
+ * sustained, well-timed offense rather than total damage. Filling it
+ * completely is a posture break: a long stagger that opens a riposte.
+ */
+export class Posture {
+  current = 0;
+  private sinceDamage = 0;
+
+  constructor(readonly tuning: PostureTuning) {}
+
+  get ratio(): number {
+    return Math.min(1, this.current / this.tuning.max);
   }
 
-  /** Apply poise damage; returns true when poise breaks (and resets). */
-  damage(amount: number, bonus = 0): boolean {
-    this.sinceHit = 0;
-    this.current -= amount;
-    if (this.current + bonus <= 0) {
-      this.current = this.max;
-      return true;
-    }
-    return false;
+  /** Add posture damage; returns true when this breaks posture. */
+  damage(amount: number): boolean {
+    this.sinceDamage = 0;
+    this.current = Math.min(this.tuning.max, this.current + Math.max(0, amount));
+    return this.current >= this.tuning.max;
   }
 
   update(dt: number): void {
-    this.sinceHit += dt;
-    if (this.sinceHit >= this.resetDelay) this.current = this.max;
+    this.sinceDamage += dt;
+    if (this.sinceDamage >= this.tuning.regenDelay) this.current = Math.max(0, this.current - this.tuning.regenRate * dt);
   }
 
   reset(): void {
-    this.current = this.max;
-    this.sinceHit = 0;
+    this.current = 0;
+    this.sinceDamage = 0;
   }
 }

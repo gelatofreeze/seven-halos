@@ -1,5 +1,5 @@
 /** Logical gameplay actions. Devices map to these; gameplay never sees raw keys or touches. */
-export const ACTIONS = ['left', 'right', 'down', 'jump', 'attack', 'dodge'] as const;
+export const ACTIONS = ['left', 'right', 'down', 'jump', 'attack', 'heavy', 'dodge', 'guard', 'parry'] as const;
 export type ActionName = (typeof ACTIONS)[number];
 
 /** Input snapshot consumed by one fixed simulation step. */
@@ -10,11 +10,27 @@ export interface InputFrame {
   jumpHeld: boolean;
   jumpPressed: boolean;
   attackPressed: boolean;
+  /** Heavy attack: press starts it, holding charges it. */
+  heavyPressed: boolean;
+  heavyHeld: boolean;
   dodgePressed: boolean;
+  guardHeld: boolean;
+  parryPressed: boolean;
 }
 
 export function createInputFrame(): InputFrame {
-  return { moveX: 0, down: false, jumpHeld: false, jumpPressed: false, attackPressed: false, dodgePressed: false };
+  return {
+    moveX: 0,
+    down: false,
+    jumpHeld: false,
+    jumpPressed: false,
+    attackPressed: false,
+    heavyPressed: false,
+    heavyHeld: false,
+    dodgePressed: false,
+    guardHeld: false,
+    parryPressed: false,
+  };
 }
 
 /** Anything that can fill an input frame for the next simulation step. */

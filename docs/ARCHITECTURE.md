@@ -23,7 +23,7 @@ Devices ──► InputHub ──► InputFrame ──► Simulation.step() ─�
 | `src/input/` | Logical actions, `InputHub`, keyboard and touch sources |
 | `src/entities/player/` | `Player` (body, resources, gating) and `PlayerStates` (state machine) |
 | `src/entities/enemy/` | Enemy AI (`Sentinel` training enemy) |
-| `src/combat/` | Attack data types, `AttackRunner`, `HitDetection`, `Damage`, `CombatSystem`, resources |
+| `src/combat/` | Attack data types, `AttackRunner` (frames + charge), `HitDetection`, `Defense` (guard/parry resolution), `Damage`, `CombatSystem`, stamina/health/posture |
 | `src/data/` | Content: attacks/weapons, enemies, levels |
 | `src/world/` | Level parsing, `Simulation`, simulation events |
 | `src/rpg/`, `src/inventory/` | Attributes/currencies and equipment (minimal, already consumed by combat) |
@@ -32,12 +32,12 @@ Devices ──► InputHub ──► InputFrame ──► Simulation.step() ─�
 | `src/ui/` | HUD |
 | `src/debug/` | Hitbox / state overlay |
 | `src/scenes/` | Boot, TestChamber (world), UI (HUD) |
-| `tests/` | Vitest: core, movement, combat |
+| `tests/` | Vitest: core, movement, combat, advanced combat, input/touch |
 
 ## Key rules
 - **Input is decoupled from behaviour.** Devices only call `InputHub.press/release`. The simulation reads one `InputFrame` per step. Presses are counted, so a tap shorter than one step still lands, and presses that happen during hit-stop stay queued.
 - **State machine.** `StateMachine` runs `exit`/`enter` on transitions. When a state transitions, the new state's update runs in the same step (zero added latency). A state that returns a transition must not have applied per-step movement first.
-- **Hit detection ≠ damage.** `HitDetection` only does geometry and once-per-target bookkeeping. `calculateDamage` is a pure function. Targets apply results in `receiveHit`.
+- **Hit detection ≠ defense ≠ damage.** `HitDetection` only does geometry and once-per-target bookkeeping. `resolveDefense` decides parry/block/guard break from facing and defense state. `calculateDamage` is a pure function. Targets apply results in `receiveHit` / `receiveBlock` / `onAttackParried`.
 - **Animation never drives logic.** Attack and dodge sprites are picked from the logic frame counter, not the other way round.
 - **No per-step allocation** on the hot path: hitboxes are pooled and input frames are reused. Events are allocated only when something happens.
 - **Collision** uses exact swept, axis-separated movement against merged level rectangles, so a body cannot tunnel through thin solids. One-way platforms collide only from above. If levels get large, add a spatial grid in `CollisionWorld`.
@@ -46,7 +46,7 @@ Devices ──► InputHub ──► InputFrame ──► Simulation.step() ─�
 Logical height targets 270 px. Zoom is the integer number of *device* pixels per game pixel, picked so the height lands near 270 (range 216–360). Width follows the screen's aspect ratio (384–640 px), so the image is never stretched: an iPhone 14 in landscape renders 633×292 at 4×. Screens wider than 640 logical pixels are letterboxed. Concept art uses a 1448×1086 canvas; that is a reference size, not the game resolution.
 
 ## Touch controls
-`TouchControls` is a DOM overlay. The left side of the screen is a floating joystick: wherever the thumb lands becomes the stick's centre, and the base follows if the thumb drags past the rim. It gives an analog horizontal axis (`InputHub.setAxis`) and a "down" hold. Action buttons sit on the right. A touch goes to the nearest button within 1.6× its radius, and button positions are read at touch time, so rotation can't leave stale hit areas. Each finger keeps its binding until it lifts, and bindings are checked against `TouchEvent.touches` on every event to recover from touchends that iOS drops. Layout and feel are tuned in `src/config/controls.ts`.
+`TouchControls` is a DOM overlay; the finger-binding logic lives in the DOM-free `TouchRouter` (unit-tested). The left side of the screen is a floating joystick: wherever the thumb lands becomes the stick's centre, and the base follows if the thumb drags past the rim. It gives an analog horizontal axis (`InputHub.setAxis`) and a "down" hold. Action buttons sit on the right. A touch goes to the nearest button within 1.6× its radius, and button positions are read at touch time, so rotation can't leave stale hit areas. Each finger keeps its binding until it lifts, and bindings are checked against `TouchEvent.touches` on every event to recover from touchends that iOS drops. Layout and feel are tuned in `src/config/controls.ts`.
 
 ## Browser integration
 - `touch-action: none`, a blocking `touchmove` listener, `gesturestart`/`dblclick` prevention and a fixed body stop scrolling and zoom.

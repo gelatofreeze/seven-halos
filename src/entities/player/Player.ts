@@ -1,6 +1,7 @@
 import { AttackRunner } from '../../combat/AttackRunner';
 import { Health, Stamina } from '../../combat/Resources';
-import type { ActiveHitbox, AttackDefinition, Combatant, CombatStats, DamageResult, HitboxSink } from '../../combat/types';
+import type { ActiveHitbox, AttackDefinition, Combatant, CombatStats, DamageResult, DefenseState, HitboxSink, RiposteTarget } from '../../combat/types';
+import { GUARD, PARRY, RIPOSTE } from '../../config/combat';
 import { PLAYER_COMBAT } from '../../config/player';
 import { jumpPhysics, PLAYER_MOVEMENT, type MovementTuning } from '../../config/movement';
 import { approach, sign, type Facing } from '../../core/math';
@@ -40,7 +41,9 @@ export class Player implements Combatant {
   coyoteTimer = 0;
   jumpBuffer = 0;
   attackBuffer = 0;
+  heavyBuffer = 0;
   dodgeBuffer = 0;
+  parryBuffer = 0;
   postHitInvulnerability = 0;
 
   /** True from takeoff until landing, for apex hang and the release cut. */
@@ -53,8 +56,13 @@ export class Player implements Combatant {
   /** Frame index the current action state processed this step (-1 before its first frame). */
   actionFrame = -1;
   hurtFrames = 0;
-  /** Set by the attack state before a forced re-entry to chain the combo. */
-  pendingComboAttack: AttackDefinition | null = null;
+  /** Frames of block-stun remaining while guarding. */
+  blockStunFrames = 0;
+  /** The attack the attack state will start on its next entry (light, heavy or combo follow-up). */
+  nextAttack: AttackDefinition | null = null;
+  /** Enemies that may be riposted; wired up by the simulation. */
+  riposteTargets: readonly RiposteTarget[] = [];
+  riposteTarget: RiposteTarget | null = null;
 
   spawnX: number;
   spawnY: number;
@@ -93,9 +101,11 @@ export class Player implements Combatant {
 
     this.jumpBuffer = input.jumpPressed ? t.jump.bufferTime : Math.max(0, this.jumpBuffer - dt);
     this.attackBuffer = input.attackPressed ? t.actionBufferTime : Math.max(0, this.attackBuffer - dt);
+    this.heavyBuffer = input.heavyPressed ? t.actionBufferTime : Math.max(0, this.heavyBuffer - dt);
     this.dodgeBuffer = input.dodgePressed ? t.actionBufferTime : Math.max(0, this.dodgeBuffer - dt);
+    this.parryBuffer = input.parryPressed ? t.actionBufferTime : Math.max(0, this.parryBuffer - dt);
     this.postHitInvulnerability = Math.max(0, this.postHitInvulnerability - dt);
-    this.stamina.update(dt, this.fsm.is('attack') || this.fsm.is('dodge'));
+    this.stamina.update(dt, this.staminaRegenMultiplier());
 
     this.fsm.update(dt);
 
@@ -115,6 +125,13 @@ export class Player implements Combatant {
       this.safeY = this.body.footY;
     }
     this.checkAbyss();
+  }
+
+  private staminaRegenMultiplier(): number {
+    const s = this.fsm.current;
+    if (s === 'attack' || s === 'dodge' || s === 'parry' || s === 'riposte') return this.stamina.tuning.busyRegenMultiplier;
+    if (s === 'guard') return GUARD.staminaRegenMultiplier;
+    return 1;
   }
 
   // ---- Movement helpers used by states -------------------------------------------------
@@ -183,13 +200,37 @@ export class Player implements Combatant {
     this.events.push({ type: 'jump', x: this.body.footX, y: this.body.footY });
   }
 
+  canParry(): boolean {
+    return this.body.grounded && this.stamina.canSpend();
+  }
+
+  /** Guard is a hold: raised whenever the button is held on the ground. Low stamina does not prevent raising it. */
+  wantsGuard(): boolean {
+    return this.input.guardHeld && this.body.grounded;
+  }
+
+  /** Nearest staggered enemy within riposte reach, if any. */
+  findRiposteTarget(): RiposteTarget | null {
+    if (!this.body.grounded) return null;
+    for (const t of this.riposteTargets) {
+      if (!t.canBeRiposted()) continue;
+      if (Math.abs(t.body.footX - this.body.footX) > RIPOSTE.range) continue;
+      if (Math.abs(t.body.footY - this.body.footY) > RIPOSTE.maxHeightDifference) continue;
+      return t;
+    }
+    return null;
+  }
+
   /**
    * Start whichever buffered action is allowed, in priority order
-   * dodge → jump → attack. Returns the state to enter, or null.
-   * Jumping before attacking lets jump+attack pressed together become a jump attack.
+   * dodge → parry → jump → riposte → heavy → light. Returns the state to
+   * enter, or null. Jumping before attacking lets jump+attack pressed
+   * together become a jump attack; a light attack next to a staggered enemy
+   * becomes a riposte.
    */
   tryStartAction(): PlayerStateId | null {
     if (this.dodgeBuffer > 0 && this.canDodge()) return 'dodge';
+    if (this.parryBuffer > 0 && this.canParry()) return 'parry';
     if (this.jumpBuffer > 0) {
       if (this.body.grounded && this.input.down && this.body.standingOnOneWayOnly(this.world)) {
         this.body.dropThroughTime = this.tuning.dropThroughTime;
@@ -202,7 +243,21 @@ export class Player implements Combatant {
         return 'jump';
       }
     }
-    if (this.attackBuffer > 0 && this.canAttack()) return 'attack';
+    if (this.attackBuffer > 0) {
+      const target = this.findRiposteTarget();
+      if (target) {
+        this.riposteTarget = target;
+        return 'riposte';
+      }
+    }
+    if (this.heavyBuffer > 0 && this.body.grounded && this.canAttack()) {
+      this.nextAttack = this.equipment.heavyAttack();
+      return 'attack';
+    }
+    if (this.attackBuffer > 0 && this.canAttack()) {
+      this.nextAttack = this.equipment.lightAttack();
+      return 'attack';
+    }
     return null;
   }
 
@@ -219,10 +274,37 @@ export class Player implements Combatant {
     return true;
   }
 
-  /** True during dodge i-frames, post-hit grace, and death. */
+  get centerX(): number {
+    return this.body.footX;
+  }
+
+  /** True during dodge i-frames, ripostes, post-hit grace, and death. */
   isInvulnerable(): boolean {
-    if (this.isDead || this.postHitInvulnerability > 0) return true;
+    if (this.isDead || this.postHitInvulnerability > 0 || this.fsm.is('riposte')) return true;
     return this.isDodgeInvulnerable();
+  }
+
+  isGuardRaised(): boolean {
+    return this.fsm.is('guard') && this.actionFrame >= GUARD.raiseFrames;
+  }
+
+  isParryActive(): boolean {
+    return this.fsm.is('parry') && this.actionFrame >= PARRY.startupFrames && this.actionFrame < PARRY.startupFrames + PARRY.windowFrames;
+  }
+
+  /** True while the player can't act after a guard break. */
+  get isGuardBroken(): boolean {
+    return this.fsm.is('guardBroken');
+  }
+
+  private readonly defenseState: DefenseState = { mode: 'none', facing: 1, stamina: 0 };
+
+  defense(): DefenseState {
+    const d = this.defenseState;
+    d.mode = this.isParryActive() ? 'parry' : this.isGuardRaised() ? 'guard' : 'none';
+    d.facing = this.facing;
+    d.stamina = this.stamina.current;
+    return d;
   }
 
   isDodgeInvulnerable(): boolean {
@@ -232,7 +314,31 @@ export class Player implements Combatant {
   }
 
   writeHitboxes(sink: HitboxSink): void {
-    if (this.fsm.is('attack')) this.attack.writeHitboxes(sink, this, this.facing, this.body.footX, this.body.footY);
+    if (this.fsm.is('attack') || this.fsm.is('riposte')) this.attack.writeHitboxes(sink, this, this.facing, this.body.footX, this.body.footY);
+  }
+
+  receiveBlock(result: DamageResult, hit: ActiveHitbox, staminaCost: number, guardBroken: boolean): void {
+    if (this.isDead) return;
+    this.health.damage(Math.round(result.damage * (1 - GUARD.damageReduction)));
+    this.events.push({ type: 'block', x: this.body.footX + this.facing * 6, y: this.body.centerY, guardBroken, facing: hit.facing });
+    if (this.health.isDepleted) {
+      this.fsm.transition('dead');
+      return;
+    }
+    this.body.vx = hit.facing * result.knockbackX * GUARD.pushbackMultiplier;
+    if (guardBroken) {
+      this.stamina.spend(this.stamina.current + 1);
+      this.fsm.transition('guardBroken', true);
+    } else {
+      this.stamina.spend(staminaCost);
+      this.blockStunFrames = GUARD.blockStunFrames;
+    }
+  }
+
+  receiveParrySuccess(_hit: ActiveHitbox): void {
+    // Deflected: no damage, a short grace period, and free to act (riposte!) immediately.
+    this.postHitInvulnerability = PARRY.successInvulnerableFrames / 60;
+    this.fsm.transition(this.locomotionState(), true);
   }
 
   receiveHit(result: DamageResult, hit: ActiveHitbox): void {
@@ -242,10 +348,10 @@ export class Player implements Combatant {
     this.events.push({
       type: 'hit',
       targetFaction: 'player',
+      kind: hit.attack.kind,
       x: this.body.footX,
       y: this.body.centerY,
       damage: dealt,
-      poiseBroken: true,
       facing: hit.facing,
     });
     if (this.health.isDepleted) {
@@ -271,7 +377,8 @@ export class Player implements Combatant {
     this.facing = 1;
     this.jumping = false;
     this.postHitInvulnerability = 0;
-    this.jumpBuffer = this.attackBuffer = this.dodgeBuffer = 0;
+    this.jumpBuffer = this.attackBuffer = this.heavyBuffer = this.dodgeBuffer = this.parryBuffer = 0;
+    this.blockStunFrames = 0;
     this.fsm.transition('idle', true);
     this.events.push({ type: 'respawn', faction: 'player', x: this.spawnX, y: this.spawnY });
   }

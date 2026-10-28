@@ -6,7 +6,7 @@ import { PLAYER_MOVEMENT } from '../src/config/movement';
 import { PLAYER_COMBAT } from '../src/config/player';
 import { getAttack } from '../src/data/weapons';
 import type { SimEvent } from '../src/world/SimEvents';
-import { flatSim, run, ScriptedInput } from './helpers';
+import { engagedSim, flatSim, run, ScriptedInput } from './helpers';
 
 const SWORD = getAttack('sword.light.1');
 const CLEAVE = getAttack('sentinel.cleave');
@@ -19,7 +19,7 @@ function drainEvents(events: { drain(fn: (e: SimEvent) => void): void }): SimEve
 
 describe('Damage calculation', () => {
   it('applies defense and absorption and never drops below 1', () => {
-    const out: DamageResult = { damage: 0, poiseDamage: 0, knockbackX: 0, knockbackY: 0, hitstunFrames: 0 };
+    const out: DamageResult = { damage: 0, postureDamage: 0, knockbackX: 0, knockbackY: 0, hitstunFrames: 0 };
     calculateDamage(SWORD, { defense: 0, absorption: 0, attackMultiplier: 1 }, { defense: 2, absorption: 0.1, attackMultiplier: 1 }, out);
     expect(out.damage).toBe(Math.round((26 - 2) * 0.9));
     calculateDamage(SWORD, { defense: 0, absorption: 0, attackMultiplier: 0.01 }, { defense: 50, absorption: 0.9, attackMultiplier: 1 }, out);
@@ -36,9 +36,9 @@ describe('Stamina', () => {
     expect(s.current).toBe(0);
     expect(s.canSpend()).toBe(false);
     // Emptying the meter applies the longer exhaustion delay.
-    s.update(PLAYER_COMBAT.stamina.regenDelay + 0.1, false);
+    s.update(PLAYER_COMBAT.stamina.regenDelay + 0.1);
     expect(s.current).toBe(0);
-    for (let i = 0; i < 180; i++) s.update(1 / 60, false);
+    for (let i = 0; i < 180; i++) s.update(1 / 60);
     expect(s.current).toBeGreaterThan(40);
   });
 });
@@ -127,13 +127,6 @@ describe('Sword attack', () => {
 });
 
 describe('Hollow Sentinel', () => {
-  function engagedSim() {
-    // Player at col 5, enemy at col 8: within aggro, walks into range and attacks.
-    const sim = flatSim({ enemyCol: 8 });
-    const input = new ScriptedInput();
-    return { sim, input, enemy: sim.enemies[0]!, player: sim.player };
-  }
-
   it('telegraphs before striking and damages a player who stands still', () => {
     const { sim, input, enemy, player } = engagedSim();
     let telegraphTick = -1;
@@ -171,7 +164,7 @@ describe('Hollow Sentinel', () => {
     expect(evaded).toBe(1);
   });
 
-  it('hyper-armour keeps the windup going; breaking poise staggers it', () => {
+  it('hyper-armour keeps the windup going; filling posture breaks it open', () => {
     const run1 = engagedSim();
     let armoredHit = false;
     run(run1.sim, run1.input, 200, () => {
@@ -182,17 +175,17 @@ describe('Hollow Sentinel', () => {
     expect(armoredHit).toBe(true);
 
     const run2 = engagedSim();
-    let staggered = false;
+    let broken = false;
     run(run2.sim, run2.input, 200, () => {
       const e = run2.enemy;
       if (e.fsm.is('attack') && e.attack.frame === 2) {
-        // Pre-damaged poise: the next sword hit breaks through the hyper-armour.
-        e.poise.current = -CLEAVE.hyperArmor! + 1;
+        // Nearly full posture: the next sword hit breaks through the hyper-armour.
+        e.posture.current = e.def.posture.max - 1;
         run2.input.frame.attackPressed = true;
       }
-      if (e.fsm.is('stagger')) staggered = true;
+      if (e.fsm.is('postureBroken')) broken = true;
     });
-    expect(staggered).toBe(true);
+    expect(broken).toBe(true);
   });
 
   it('is defeated at zero health and respawns after its delay', () => {
