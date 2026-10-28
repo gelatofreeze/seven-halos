@@ -29,3 +29,4 @@ Add or adjust tests in `tests/` for any movement or combat rule change (see `tes
 
 ## Git
 Work on `dev/*` branches and open PRs. Don't merge without the owner's approval.
+Whenever you ask the owner to merge, give the direct PR link (`https://github.com/<owner>/<repo>/pull/<n>`); the merge button is at the bottom of that page. Say when CI is green so they know it's safe to merge.

@@ -12,6 +12,8 @@ export class InputHub implements InputProvider {
   private readonly consumedCount = new Map<ActionName, number>();
   /** Most recently pressed horizontal direction, so left+right resolves to the newest. */
   private lastHorizontal: -1 | 1 = 1;
+  /** Analog horizontal axes (-1..1) per source, e.g. the touch joystick. */
+  private readonly axes = new Map<string, number>();
 
   constructor() {
     for (const action of ACTIONS) {
@@ -37,9 +39,16 @@ export class InputHub implements InputProvider {
     this.holders.get(action)!.delete(source);
   }
 
+  /** Set an analog horizontal axis for a source; 0 means "not steering". */
+  setAxis(source: string, value: number): void {
+    if (value === 0) this.axes.delete(source);
+    else this.axes.set(source, Math.max(-1, Math.min(1, value)));
+  }
+
   /** Release everything (focus loss, tab hidden, orientation change). */
   releaseAll(): void {
     for (const set of this.holders.values()) set.clear();
+    this.axes.clear();
   }
 
   isHeld(action: ActionName): boolean {
@@ -56,7 +65,10 @@ export class InputHub implements InputProvider {
   sample(out: InputFrame): void {
     const left = this.isHeld('left');
     const right = this.isHeld('right');
-    out.moveX = left && right ? this.lastHorizontal : right ? 1 : left ? -1 : 0;
+    let axis = 0;
+    for (const v of this.axes.values()) if (Math.abs(v) > Math.abs(axis)) axis = v;
+    // Digital directions (keys) win over an analog axis when both are active.
+    out.moveX = left && right ? this.lastHorizontal : right ? 1 : left ? -1 : axis;
     out.down = this.isHeld('down');
     out.jumpPressed = this.consumePress('jump');
     // A tap shorter than one step still counts as held for that step (minimum hop).
