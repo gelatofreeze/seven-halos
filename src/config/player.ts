@@ -4,7 +4,7 @@ import type { StaminaTuning } from '../combat/Resources';
 export const PLAYER_COMBAT = {
   body: { w: 12, h: 26 },
   maxHealth: 100,
-  stamina: { max: 100, regenRate: 48, regenDelay: 0.55, busyRegenMultiplier: 0 } satisfies StaminaTuning,
+  stamina: { max: 100, regenRate: 40, regenDelay: 0.55, exhaustedRegenDelay: 1.1, busyRegenMultiplier: 0 } satisfies StaminaTuning,
   /** Seconds of invincibility after being hit, to avoid multi-hit stunlocks on mobile. */
   postHitInvulnerability: 0.3,
   /** Seconds before respawning after death. */

@@ -179,6 +179,7 @@ export class Player implements Combatant {
     this.coyoteTimer = 0;
     this.jumping = true;
     this.jumpCutApplied = false;
+    this.stamina.spend(this.tuning.jump.staminaCost);
     this.events.push({ type: 'jump', x: this.body.footX, y: this.body.footY });
   }
 
