@@ -3,11 +3,12 @@ import { SLOT_IDS, type SlotId } from '../data/equipmentSlots';
 import { ITEMS } from '../data/items';
 import { getWeapon } from '../data/weapons';
 import { fitsSlot } from '../rpg/Loadout';
+import { findCheckpoint, isValidLocation, persistentObjectIds, type WorldLocation } from '../world/regions';
 import type { ItemInstance } from '../inventory/Inventory';
 import type { PlayerProfile } from '../rpg/Profile';
 import type { StorageAdapter } from './Storage';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const SAVE_KEY = 'seven-halos.save';
 /** Unreadable saves are moved here instead of being silently destroyed. */
 export const CORRUPT_BACKUP_KEY = 'seven-halos.save.corrupt';
@@ -37,10 +38,29 @@ export interface SaveDataV2 {
   equipment: Partial<Record<SlotId, number>>;
 }
 
+/** World progress in the save (v3). Only stable ids; validated against the region registry on load. */
+export interface SavedWorld {
+  location: WorldLocation | null;
+  respawn: WorldLocation | null;
+  checkpoints: string[];
+  flags: string[];
+}
+
+/**
+ * Save format v3: v2 plus `world`. The document is one character's progress;
+ * future save slots store one document each (a key per slot), and new
+ * sections (quests, appearance) are added as further top-level fields.
+ */
+export interface SaveDataV3 extends Omit<SaveDataV2, 'version'> {
+  version: 3;
+  world: SavedWorld;
+}
+
 export type LoadStatus = 'new' | 'loaded' | 'migrated' | 'corrupt' | 'unsupported-version';
 
-export function serializeProfile(profile: PlayerProfile, now = new Date()): SaveDataV2 {
+export function serializeProfile(profile: PlayerProfile, now = new Date()): SaveDataV3 {
   const w = profile.wallet;
+  const w2 = profile.world;
   const equipment: Partial<Record<SlotId, number>> = {};
   for (const [slot, uid] of profile.loadout.entries()) equipment[slot] = uid;
   return {
@@ -49,6 +69,12 @@ export function serializeProfile(profile: PlayerProfile, now = new Date()): Save
     currencies: { experience: w.experience, gold: w.gold, weaponXp: w.weaponXp },
     inventory: { nextUid: profile.inventory.nextId, items: profile.inventory.all.map((i) => ({ ...i })) },
     equipment,
+    world: {
+      location: w2.location ? { ...w2.location } : null,
+      respawn: w2.respawn ? { ...w2.respawn } : null,
+      checkpoints: [...w2.checkpoints],
+      flags: [...w2.flags],
+    },
   };
 }
 
@@ -80,6 +106,15 @@ export const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Recor
       equipment: { mainHand: v1.equippedWeaponUid },
     };
   },
+  /**
+   * v2 → v3: adds world progress. A v2 player has discovered nothing yet and
+   * starts at the sanctuary approach; every v2 field is kept unchanged.
+   */
+  2: (v2) => ({
+    ...v2,
+    version: 3,
+    world: { location: null, respawn: null, checkpoints: [], flags: [] },
+  }),
 };
 
 /**
@@ -131,7 +166,27 @@ export function applySave(raw: string | null, profile: PlayerProfile): LoadStatu
     if (instance && fitsSlot(instance.itemId, slot) && !profile.loadout.isEquipped(uid)) profile.loadout.set(slot, uid);
   }
   profile.ensureStarterWeapon();
+  applyWorld(isRecord(record.world) ? record.world : {}, profile);
   return fromVersion < SAVE_VERSION ? 'migrated' : 'loaded';
+}
+
+function asLocation(v: unknown): WorldLocation | null {
+  if (!isRecord(v) || typeof v.region !== 'string' || typeof v.anchor !== 'string') return null;
+  const loc = { region: v.region, anchor: v.anchor };
+  return isValidLocation(loc) ? loc : null;
+}
+
+/** World progress: unknown regions, anchors, checkpoints and flags are dropped, never trusted. */
+function applyWorld(world: Record<string, unknown>, profile: PlayerProfile): void {
+  const w = profile.world;
+  w.clear();
+  const known = persistentObjectIds();
+  if (Array.isArray(world.checkpoints)) for (const id of world.checkpoints) if (typeof id === 'string' && findCheckpoint(id)) w.checkpoints.add(id);
+  if (Array.isArray(world.flags)) for (const id of world.flags) if (typeof id === 'string' && known.has(id)) w.flags.add(id);
+  w.location = asLocation(world.location);
+  const respawn = asLocation(world.respawn);
+  // Respawning is only ever at an activated shrine.
+  w.respawn = respawn && w.checkpoints.has(respawn.anchor) && findCheckpoint(respawn.anchor)?.region === respawn.region ? respawn : null;
 }
 
 /**

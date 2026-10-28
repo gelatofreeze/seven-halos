@@ -1,5 +1,7 @@
 import { CombatSystem } from '../combat/CombatSystem';
 import type { Combatant } from '../combat/types';
+import type { Facing } from '../core/math';
+import { rectsOverlap } from '../core/Rect';
 import { seeded } from '../core/random';
 import { getEnemy } from '../data/enemies';
 import { getSlot, type SlotId } from '../data/equipmentSlots';
@@ -11,10 +13,12 @@ import { CollisionWorld } from '../physics/CollisionWorld';
 import { checkEquip, equipInto } from '../rpg/Loadout';
 import { PlayerProfile } from '../rpg/Profile';
 import { upgradeWeapon, type UpgradeResult } from '../rpg/WeaponUpgrades';
-import type { LevelData } from './Level';
+import type { CheckpointObject, LevelData, WorldObject } from './Level';
 import { rollLoot } from './Loot';
 import { createPickup, PICKUP_ARM_TIME, stepPickup, type Pickup } from './Pickups';
-import { SimEventQueue } from './SimEvents';
+import { SimEventQueue, type TravelReason } from './SimEvents';
+import { findCheckpoint, type WorldLocation } from './regions';
+import type { WorldSession } from './WorldProgress';
 
 export interface SimulationOptions {
   /** Seed for AI decisions. Loot uses a separate stream derived from it. */
@@ -26,7 +30,30 @@ export interface SimulationOptions {
    * weapons can be tried without farming. Never enabled in commercial builds.
    */
   devPickups?: boolean;
+  /** Where the player appears; defaults to the level's spawn. */
+  arrival?: { x: number; y: number; facing?: Facing };
+  /** Health to arrive with (carried through a doorway); defaults to full. */
+  arrivalHealth?: number | null;
+  /**
+   * Unsaved world state shared across regions (enemies defeated since the
+   * last rest). Only used when the level's `enemyRespawn` is 'rest'.
+   */
+  session?: WorldSession;
+  /**
+   * `local`: after death the player gets up at the level spawn (tests, the
+   * test chamber). `checkpoint`: death asks to travel to the last shrine
+   * (`pendingTravel`), which `GameWorld` carries out.
+   */
+  respawnMode?: 'local' | 'checkpoint';
 }
+
+/** The simulation wants to leave this region. `to` is omitted for death (GameWorld picks the shrine). */
+export interface TravelRequest {
+  reason: TravelReason;
+  to?: WorldLocation;
+}
+
+export type ShrineResult = 'ok' | 'not-at-shrine' | 'locked' | 'unknown' | 'busy';
 
 /** 'invalid': not an owned item. Other failures come from the loadout rules (rpg/Loadout.ts). */
 export type EquipResult = 'equipped' | 'busy' | 'invalid' | 'incompatible' | 'blocked-by-two-handed' | 'required';
@@ -56,6 +83,13 @@ export class Simulation {
   readonly lootRandom: () => number;
   /** The profile's equipped weapon changed outside `requestEquip` (e.g. a save reset); apply when neutral. */
   private equipmentSyncPending = false;
+  /** Set when the player walks out, dies (checkpoint mode), rests or travels. The simulation stops stepping. */
+  pendingTravel: TravelRequest | null = null;
+  /** The interactable the player is standing at (shrine, cache, door), or null. */
+  focus: WorldObject | null = null;
+  /** Doorways only work once the player has stepped out of every exit zone (no instant ping-pong). */
+  private exitsArmed = false;
+  private readonly session: WorldSession | null;
 
   constructor(
     readonly level: LevelData,
@@ -67,11 +101,24 @@ export class Simulation {
     this.profile = options.profile ?? new PlayerProfile();
     this.world = new CollisionWorld(level.solids, { x: 0, y: 0, w: level.widthPx, h: level.heightPx });
     this.combat = new CombatSystem(this.events);
-    this.player = new Player(this.world, this.events, level.playerSpawn.x, level.playerSpawn.y);
+    const arrival = options.arrival ?? level.playerSpawn;
+    this.player = new Player(this.world, this.events, arrival.x, arrival.y);
+    this.player.facing = options.arrival?.facing ?? 1;
+    if (options.arrivalHealth != null) this.player.health.current = Math.max(1, Math.min(this.player.health.max, options.arrivalHealth));
+    this.session = level.enemyRespawn === 'rest' ? (options.session ?? null) : null;
+    if (options.respawnMode === 'checkpoint') {
+      this.player.respawnOverride = () => {
+        if (!this.pendingTravel) this.requestTravelOut({ reason: 'death' });
+      };
+    }
     this.applyEquippedWeapon();
     this.combatants.push(this.player);
     for (const spawn of level.enemySpawns) {
+      // World rule: an ordinary enemy defeated since the last rest stays down, even across rooms.
+      if (this.session?.defeated.has(spawn.id)) continue;
       const enemy = new Enemy(getEnemy(spawn.enemyId), this.world, this.events, this.player, spawn.x, spawn.y, this.random);
+      enemy.spawnId = spawn.id;
+      if (level.enemyRespawn === 'rest') enemy.respawnDelay = null;
       this.enemies.push(enemy);
       this.combatants.push(enemy);
     }
@@ -91,6 +138,8 @@ export class Simulation {
   }
 
   step(dt: number, inputs: InputProvider): void {
+    // Leaving the region: nothing more happens here (GameWorld builds the next one).
+    if (this.pendingTravel) return;
     this.tick++;
     if (this.combat.hitstop > 0) {
       // Freeze everything. Input is not sampled, so presses stay latched for after the freeze.
@@ -108,6 +157,109 @@ export class Simulation {
     this.combat.step(this.combatants);
     this.processDeaths();
     this.stepPickups(dt);
+    this.updateFocus();
+    if (this.input.interactPressed) this.interact();
+    this.checkExits();
+  }
+
+  // ---- World interaction ------------------------------------------------------------------
+
+  /** The nearest usable object whose zone the player stands in. One object at most, so one press does one thing. */
+  private updateFocus(): void {
+    this.focus = null;
+    const p = this.player;
+    if (p.isDead) return;
+    let best = Infinity;
+    const b = p.body;
+    for (const o of this.level.objects) {
+      if (o.kind === 'exit' && !o.interact) continue;
+      if (o.kind === 'cache' && this.profile.world.hasFlag(o.id)) continue;
+      if (!rectsOverlap(b, o.zone)) continue;
+      const d = Math.abs(b.footX - o.x);
+      if (d < best) {
+        best = d;
+        this.focus = o;
+      }
+    }
+  }
+
+  /** Use the focused object. Only from a neutral state (not mid-attack, roll, stagger...). */
+  private interact(): void {
+    const o = this.focus;
+    if (!o || !this.player.canChangeEquipment() || !this.player.body.grounded) return;
+    const world = this.profile.world;
+    if (o.kind === 'checkpoint') {
+      const firstTime = world.activate(o.id);
+      if (firstTime) {
+        world.respawn = { region: this.level.id, anchor: o.id };
+        this.profile.touch();
+        this.events.push({ type: 'checkpointActivated', id: o.id, name: o.name, x: o.x, y: o.y });
+      }
+      this.events.push({ type: 'shrine', id: o.id, name: o.name, firstTime });
+    } else if (o.kind === 'cache') {
+      // The flag is the record: set it first, and grant only if it wasn't already set.
+      if (!world.setFlag(o.id)) return;
+      const r = o.reward;
+      for (const it of r.items ?? []) this.profile.inventory.add(it.item, it.quantity);
+      this.profile.wallet.add({ experience: 0, gold: r.gold ?? 0, weaponXp: r.weaponXp ?? 0 });
+      this.profile.touch();
+      this.events.push({ type: 'cacheOpened', id: o.id, x: o.x, y: o.y, items: r.items ?? [], gold: r.gold ?? 0, weaponXp: r.weaponXp ?? 0 });
+      this.focus = null;
+    } else {
+      this.requestTravelOut({ reason: 'exit', to: o.to });
+    }
+  }
+
+  private checkExits(): void {
+    if (this.pendingTravel || this.player.isDead) return;
+    const b = this.player.body;
+    let inside: WorldObject | null = null;
+    for (const o of this.level.objects) {
+      if (o.kind !== 'exit' || o.interact) continue;
+      if (rectsOverlap(b, o.zone)) inside = o;
+    }
+    if (!inside) {
+      this.exitsArmed = true;
+      return;
+    }
+    if (this.exitsArmed && inside.kind === 'exit') this.requestTravelOut({ reason: 'exit', to: inside.to });
+  }
+
+  private requestTravelOut(request: TravelRequest): void {
+    if (this.pendingTravel) return;
+    this.pendingTravel = request;
+    this.events.push({ type: 'travel', reason: request.reason });
+  }
+
+  /** The activated shrine the player is standing at, if any. */
+  currentShrine(): CheckpointObject | null {
+    const o = this.focus;
+    return o && o.kind === 'checkpoint' && this.profile.world.isActive(o.id) ? o : null;
+  }
+
+  /** Rest at the shrine the player stands at: restores the player and brings ordinary enemies back. */
+  requestRest(): ShrineResult {
+    const shrine = this.currentShrine();
+    if (!shrine) return 'not-at-shrine';
+    if (this.pendingTravel) return 'busy';
+    this.profile.world.respawn = { region: this.level.id, anchor: shrine.id };
+    this.profile.touch();
+    this.requestTravelOut({ reason: 'rest', to: { region: this.level.id, anchor: shrine.id } });
+    return 'ok';
+  }
+
+  /** Travel from the shrine the player stands at to another activated shrine. */
+  requestFastTravel(destination: string): ShrineResult {
+    if (!this.currentShrine()) return 'not-at-shrine';
+    const info = findCheckpoint(destination);
+    if (!info) return 'unknown';
+    if (!this.profile.world.isActive(destination)) return 'locked';
+    if (this.pendingTravel) return 'busy';
+    const to = { region: info.region, anchor: destination };
+    this.profile.world.respawn = to;
+    this.profile.touch();
+    this.requestTravelOut({ reason: 'travel', to });
+    return 'ok';
   }
 
   // ---- Equipment ---------------------------------------------------------------------------
@@ -174,6 +326,7 @@ export class Simulation {
   private processDeaths(): void {
     for (const e of this.enemies) {
       if (!e.consumeDeath()) continue;
+      if (e.respawnDelay === null) this.session?.defeated.add(e.spawnId);
       const r = e.def.rewards;
       this.profile.wallet.add(r);
       this.profile.touch();

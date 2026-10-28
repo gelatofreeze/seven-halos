@@ -18,6 +18,7 @@ import {
   buildSky,
   buildTileset,
 } from './environmentArt';
+import { buildBush, buildCache, buildGate, buildPlinth, buildRuin, buildSanctuaryFacade, buildTree } from './worldArt';
 
 /** Texture keys used by the presentation layer. Final art loaded via the Loader must use the same keys. */
 export const TEX = {
@@ -40,6 +41,14 @@ export const TEX = {
   brazier: 'prop.brazier',
   lore: 'prop.lore',
   altar: 'prop.altar',
+  tree: 'prop.tree',
+  bush: 'prop.bush',
+  ruin: 'prop.ruin',
+  plinth: 'prop.plinth',
+  sanctuary: 'prop.sanctuary',
+  gate: 'prop.gate',
+  cacheClosed: 'prop.cache.closed',
+  cacheOpen: 'prop.cache.open',
   iconWeapon: 'icon.weapon',
   iconMaterial: 'icon.material',
 } as const;
@@ -77,6 +86,14 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
   add(TEX.brazier, buildBrazier);
   add(TEX.lore, buildLoreStone);
   add(TEX.altar, buildAltar);
+  add(TEX.tree, buildTree);
+  add(TEX.bush, buildBush);
+  add(TEX.ruin, buildRuin);
+  add(TEX.plinth, buildPlinth);
+  add(TEX.sanctuary, buildSanctuaryFacade);
+  add(TEX.gate, buildGate);
+  add(TEX.cacheClosed, () => buildCache(false));
+  add(TEX.cacheOpen, () => buildCache(true));
   add(TEX.iconWeapon, buildWeaponIcon);
   add(TEX.iconMaterial, buildMaterialIcon);
 }

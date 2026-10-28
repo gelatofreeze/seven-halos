@@ -18,9 +18,16 @@ export class Hud {
 
   constructor(
     scene: Phaser.Scene,
-    private readonly player: Player,
+    private player: Player,
   ) {
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(100);
+  }
+
+  /** A new region was loaded: follow its player (the bars snap to the new values). */
+  setPlayer(player: Player): void {
+    this.player = player;
+    this.shownHealth = player.health.ratio;
+    this.shownStamina = player.stamina.ratio;
   }
 
   setSafeArea(safe: SafeArea): void {

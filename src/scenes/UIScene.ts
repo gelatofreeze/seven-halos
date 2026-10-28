@@ -21,6 +21,11 @@ export class UIScene extends Phaser.Scene {
     this.scale.on(Phaser.Scale.Events.RESIZE, (size: Phaser.Structs.Size) => this.cameras.main.setSize(size.width, size.height));
   }
 
+  /** The gameplay scene loaded a new region (the UI scene itself keeps running). */
+  setPlayer(player: Player): void {
+    this.hud?.setPlayer(player);
+  }
+
   override update(_time: number, deltaMs: number): void {
     this.hud.update(deltaMs / 1000);
   }

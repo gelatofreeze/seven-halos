@@ -14,6 +14,7 @@ export class ScriptedInput implements InputProvider {
     this.frame.heavyPressed = false;
     this.frame.dodgePressed = false;
     this.frame.parryPressed = false;
+    this.frame.interactPressed = false;
   }
 }
 

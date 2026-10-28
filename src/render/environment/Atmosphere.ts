@@ -20,10 +20,10 @@ export class Atmosphere {
         lifespan: { min: 4000, max: 8000 },
         speedX: { min: -5, max: 5 },
         speedY: { min: -9, max: -2 },
-        frequency: 140,
+        frequency: 140 / (level.environment.moteDensity ?? 1),
         quantity: 1,
-        maxAliveParticles: 70,
-        tint: [0x9fe8ff, 0xc8b8ff, 0xffffff],
+        maxAliveParticles: Math.round(70 * (level.environment.moteDensity ?? 1)),
+        tint: [...(level.environment.motes ?? [0x9fe8ff, 0xc8b8ff, 0xffffff])],
         alpha: { onUpdate: (_p, _k, t) => Math.sin(t * Math.PI) * 0.85, onEmit: () => 0 },
         blendMode: Phaser.BlendModes.ADD,
       })

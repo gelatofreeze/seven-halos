@@ -1,5 +1,6 @@
 import { getItem } from '../data/items';
 import { Inventory, type ItemInstance } from '../inventory/Inventory';
+import { WorldProgress } from '../world/WorldProgress';
 import { Loadout } from './Loadout';
 import { Wallet } from './Wallet';
 
@@ -7,7 +8,7 @@ export const STARTING_WEAPON = 'pilgrim-sword';
 
 /**
  * Everything about the player that persists between sessions: currencies,
- * owned items (in backpack order) and the equipment loadout. Combat state is
+ * owned items (in backpack order), the equipment loadout and world progress. Combat state is
  * never part of it. `revision` increases on every change so persistence can
  * save lazily.
  */
@@ -15,6 +16,8 @@ export class PlayerProfile {
   readonly wallet = new Wallet();
   readonly inventory = new Inventory();
   readonly loadout = new Loadout();
+  /** Shrines, flags and where to resume (saved). */
+  readonly world = new WorldProgress();
   revision = 0;
 
   constructor() {
@@ -55,6 +58,7 @@ export class PlayerProfile {
     this.wallet.set({ experience: 0, gold: 0, weaponXp: 0 });
     this.inventory.clear();
     this.loadout.clear();
+    this.world.clear();
     this.ensureStarterWeapon();
     this.touch();
   }

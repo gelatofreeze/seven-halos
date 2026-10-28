@@ -61,6 +61,10 @@ export class Enemy implements Combatant, RiposteTarget {
   currentAttack: AttackDefinition;
   /** Number of times this enemy has died. */
   deaths = 0;
+  /** Stable id of the level spawn this enemy came from (world rules track defeats by it). */
+  spawnId = '';
+  /** Seconds until it gets back up after dying; null = stays down (until the player rests). */
+  respawnDelay: number | null;
   /** Facing of the most recent hit taken, for the death shove. */
   lastHitFacing: Facing = 1;
   /** Set on death, consumed once by the simulation to grant rewards and roll loot. */
@@ -77,6 +81,7 @@ export class Enemy implements Combatant, RiposteTarget {
     private readonly random: () => number,
   ) {
     this.body = new KinematicBody(spawnX, spawnY, def.body.w, def.body.h);
+    this.respawnDelay = def.respawnDelay;
     this.health = new Health(def.maxHealth);
     this.posture = new Posture(def.posture);
     this.stats = { defense: def.defense, absorption: def.absorption, attackMultiplier: 1 };
@@ -420,7 +425,7 @@ const dead: EnemyState = {
   },
   update(e, dt) {
     e.body.vx = approach(e.body.vx, 0, 900 * dt);
-    if (e.def.respawnDelay !== null && e.fsm.time >= e.def.respawnDelay) e.respawn();
+    if (e.respawnDelay !== null && e.fsm.time >= e.respawnDelay) e.respawn();
   },
 };
 

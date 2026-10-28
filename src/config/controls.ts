@@ -11,6 +11,7 @@ export const KEY_BINDINGS: Record<ActionName, readonly string[]> = {
   dodge: ['KeyL', 'KeyC'],
   guard: ['ShiftLeft', 'ShiftRight', 'KeyO'],
   parry: ['KeyP', 'KeyF'],
+  interact: ['KeyE', 'Enter'],
 };
 
 export const DEBUG_TOGGLE_KEYS: readonly string[] = ['Backquote', 'F3'];

@@ -1,4 +1,4 @@
-import type { LevelDefinition } from '../../world/Level';
+import type { RegionDefinition } from '../../world/regions';
 
 /**
  * Test chamber, west to east:
@@ -10,10 +10,13 @@ import type { LevelDefinition } from '../../world/Level';
  *    second Reaper guards a raised ledge (out of the Sentinel's sight, so the
  *    two are fought separately) that ends at the armoury altar.
  */
-export const TEST_CHAMBER: LevelDefinition = {
+export const TEST_CHAMBER: RegionDefinition = {
   id: 'test-chamber',
   name: 'Test Chamber — Ruined Shrine',
   tileSize: 16,
+  dev: true,
+  // Training room: enemies get back up on their own timers.
+  enemyRespawn: 'timer',
   rows: [
     '##.........................................................................##########..................................................................................###',
     '##.........................................................................##########..................................................................................###',

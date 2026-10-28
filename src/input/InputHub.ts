@@ -87,5 +87,6 @@ export class InputHub implements InputProvider {
     out.dodgePressed = this.consumePress('dodge');
     out.guardHeld = this.isHeld('guard');
     out.parryPressed = this.consumePress('parry');
+    out.interactPressed = this.consumePress('interact');
   }
 }
