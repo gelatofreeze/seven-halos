@@ -45,6 +45,17 @@ export interface JumpTuning {
   staminaCost: number;
 }
 
+/**
+ * The extra midair jump granted by equipment (`extraAirJumps`). Without such
+ * equipment none of this applies and jumping is exactly the base jump.
+ */
+export interface AirJumpTuning {
+  /** Height of a fully held air jump from where it starts, px (under the same gravity as the base jump). */
+  height: number;
+  /** Stamina spent per air jump (never blocks it, like the base jump). */
+  staminaCost: number;
+}
+
 export interface LandingTuning {
   /** Duration of the soft landing state; fully cancellable, s. */
   softDuration: number;
@@ -78,6 +89,7 @@ export interface MovementTuning {
   ground: HorizontalTuning;
   air: HorizontalTuning;
   jump: JumpTuning;
+  airJump: AirJumpTuning;
   landing: LandingTuning;
   dodge: DodgeTuning;
   /** Attack and dodge presses are remembered this long while busy, s. */
@@ -104,6 +116,7 @@ export const PLAYER_MOVEMENT: MovementTuning = {
     bufferTime: 0.13,
     staminaCost: 8,
   },
+  airJump: { height: 48, staminaCost: 8 },
   landing: { softDuration: 0.08, hardLandingSpeed: 415, hardDuration: 0.16, hardSpeedMultiplier: 0.45 },
   dodge: {
     staminaCost: 28,
@@ -119,6 +132,13 @@ export const PLAYER_MOVEMENT: MovementTuning = {
   actionBufferTime: 0.2,
   dropThroughTime: 0.2,
 };
+
+/** Takeoff speed of an air jump reaching `airJump.height` under the base jump's gravity. */
+export function airJumpSpeed(tuning: MovementTuning, dt = 1 / 60): number {
+  const { gravity } = jumpPhysics(tuning.jump, dt);
+  const half = (gravity * dt) / 2;
+  return half + Math.sqrt(half * half + 2 * gravity * tuning.airJump.height);
+}
 
 /**
  * Derive gravity and takeoff speed from designer-facing height/time. The

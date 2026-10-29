@@ -427,56 +427,6 @@ export function buildFlameSheet(frames: number): HTMLCanvasElement {
   return canvas;
 }
 
-/** The forest's ancient tree: a vast trunk and canopy the climb is built around, 176 x 236. */
-export function buildAncientTree(): HTMLCanvasElement {
-  const w = 176;
-  const h = 236;
-  const { canvas, ctx } = createCanvas(w, h);
-  const rand = seeded(61);
-  const bark = '#3a2c26';
-  const barkLight = '#5a453a';
-  // Roots.
-  ctx.fillStyle = bark;
-  ctx.beginPath();
-  ctx.moveTo(50, h);
-  ctx.quadraticCurveTo(76, h - 30, 74, h - 60);
-  ctx.lineTo(104, h - 60);
-  ctx.quadraticCurveTo(102, h - 30, 130, h);
-  ctx.fill();
-  // Trunk.
-  ctx.fillRect(74, 60, 30, h - 110);
-  ctx.fillStyle = barkLight;
-  ctx.fillRect(77, 60, 3, h - 110);
-  ctx.fillRect(92, 90, 2, 60);
-  // Branch stubs where the climb's branches meet the trunk.
-  ctx.fillStyle = bark;
-  for (const [y, dir] of [
-    [h - 56, -1],
-    [h - 104, 1],
-    [h - 152, -1],
-  ] as const) {
-    ctx.fillRect(dir < 0 ? 52 : 104, y, 22, 7);
-  }
-  // Moss.
-  ctx.fillStyle = C.moss;
-  for (let y = 70; y < h - 40; y += 7) if (rand() > 0.35) ctx.fillRect(98, y, 4, 4);
-  // Canopy.
-  for (let i = 0; i < 60; i++) {
-    const cx = 88 + (rand() - 0.5) * 168;
-    const cy = 44 + (rand() - 0.5) * 80;
-    ctx.fillStyle = LEAF[Math.floor(rand() * LEAF.length)]!;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 10 + rand() * 14, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  quantizeAlpha(ctx, w, h);
-  for (let i = 0; i < 24; i++) {
-    ctx.fillStyle = FLOWERS[i % FLOWERS.length]!;
-    ctx.fillRect(Math.floor(20 + rand() * 136), Math.floor(14 + rand() * 70), 1, 1);
-  }
-  return canvas;
-}
-
 /** A ruined colonnade (distant): columns, one fallen, under a broken architrave. 256 x 104. */
 export function buildColonnade(): HTMLCanvasElement {
   const w = 256;
@@ -526,34 +476,6 @@ export function buildFlowers(): HTMLCanvasElement {
     ctx.fillStyle = FLOWERS[i % FLOWERS.length]!;
     ctx.fillRect(1 + Math.floor(rand() * 14), 1 + Math.floor(rand() * 4), 2, 2);
   }
-  return canvas;
-}
-
-/** The old stone bridge under the ravine crossing: arches with the middle span fallen. 224 x 84. */
-export function buildBridgeRuin(): HTMLCanvasElement {
-  const w = 224;
-  const h = 84;
-  const { canvas, ctx } = createCanvas(w, h);
-  ctx.fillStyle = '#2e2a40';
-  // Piers.
-  ctx.fillRect(0, 0, 18, h);
-  ctx.fillRect(w - 18, 0, 18, h);
-  ctx.fillRect(96, 26, 32, h - 26);
-  // The surviving arches, either side of the fallen span.
-  ctx.fillRect(18, 0, 60, 10);
-  ctx.fillRect(w - 78, 0, 60, 10);
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.strokeStyle = '#3c3654';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.arc(57, 30, 40, Math.PI, 1.6 * Math.PI);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(w - 57, 30, 40, 1.4 * Math.PI, 0);
-  ctx.stroke();
-  ctx.fillStyle = C.mossLight;
-  for (const x of [6, 104, w - 12]) ctx.fillRect(x, 0, 6, 3);
-  quantizeAlpha(ctx, w, h);
   return canvas;
 }
 

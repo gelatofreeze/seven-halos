@@ -5,8 +5,20 @@ import type { SlotType } from './equipmentSlots';
  * the inventory. New kinds (armor, shields, accessories, consumables) slot in
  * as further `kind` values without changing the inventory.
  */
-export type ItemKind = 'weapon' | 'material';
+export type ItemKind = 'weapon' | 'material' | 'accessory';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+
+/**
+ * Passive effects an item grants while it is validly equipped (in a
+ * functional slot it fits). Typed fields, one per effect: the rules that read
+ * them live in rpg/PassiveEffects.ts, never in item-name checks. Future
+ * effects (move speed, defence, stamina, wall-climb...) are added here as
+ * further optional fields.
+ */
+export interface PassiveEffects {
+  /** Extra jumps the wearer may make in midair before landing again. */
+  extraAirJumps?: number;
+}
 
 export interface ItemDefinition {
   id: string;
@@ -22,6 +34,8 @@ export interface ItemDefinition {
   equip?: readonly SlotType[];
   /** Occupies the off hand too (none yet; the loadout rules already enforce it). */
   twoHanded?: boolean;
+  /** Passive effects while equipped (accessories). */
+  effects?: PassiveEffects;
 }
 
 export const ITEMS: Record<string, ItemDefinition> = {
@@ -44,6 +58,16 @@ export const ITEMS: Record<string, ItemDefinition> = {
     weaponId: 'mourning-crescent',
     equip: ['weapon'],
     description: 'A barrow reaper’s scythe. Wide, sweeping reach; slow to recover when it misses.',
+  },
+  'updraft-ring': {
+    id: 'updraft-ring',
+    name: 'Updraft Ring',
+    kind: 'accessory',
+    rarity: 'rare',
+    stackable: false,
+    equip: ['ring'],
+    effects: { extraAirJumps: 1 },
+    description: 'A band of pale, wind-worn metal that never quite sits still on the finger. While worn, the air gathers beneath you once more after you leave the ground.',
   },
   'grave-dust': {
     id: 'grave-dust',

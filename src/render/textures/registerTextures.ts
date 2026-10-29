@@ -20,9 +20,7 @@ import {
   buildTreeLine,
 } from './environmentArt';
 import {
-  buildAncientTree,
   buildBrazierBase,
-  buildBridgeRuin,
   buildCastle,
   buildColonnade,
   buildDoorArch,
@@ -41,6 +39,8 @@ import {
   buildTorchPost,
   buildWaymarker,
 } from './architectureArt';
+import { buildAncientTree, buildBridgeRuin, buildFern, buildHangingRoots, buildIvy, buildRootHollow, buildRubble, buildTreeRoots } from './forestArt';
+import { buildCaveBack, buildCaveLayer, buildGlowMoss, buildRelic, buildStalagmite } from './caveArt';
 import { buildOracle } from './npcArt';
 import { buildBush, buildCache, buildGate, buildPlinth, buildRuin, buildTree } from './worldArt';
 
@@ -93,6 +93,19 @@ export const TEX = {
   shrineArch: 'prop.shrine-arch',
   castle: 'prop.castle',
   gate: 'prop.gate',
+  treeRoots: 'prop.tree-roots',
+  rootHollow: 'prop.root-hollow',
+  hangingRoots: 'prop.hanging-roots',
+  ivy: 'prop.ivy',
+  rubble: 'prop.rubble',
+  fern: 'prop.fern',
+  glowMoss: 'prop.glow-moss',
+  stalagmite: 'prop.stalagmite',
+  relicClosed: 'prop.relic.closed',
+  relicOpen: 'prop.relic.open',
+  caveBack: 'bg.cave.back',
+  caveFar: 'bg.cave.far',
+  caveMid: 'bg.cave.mid',
   cacheClosed: 'prop.cache.closed',
   cacheOpen: 'prop.cache.open',
   iconWeapon: 'icon.weapon',
@@ -163,6 +176,19 @@ export function registerPlaceholderTextures(scene: Phaser.Scene): void {
   add(TEX.shrineArch, buildShrineArch);
   add(TEX.castle, buildCastle);
   add(TEX.gate, buildGate);
+  add(TEX.treeRoots, buildTreeRoots);
+  add(TEX.rootHollow, buildRootHollow);
+  add(TEX.hangingRoots, buildHangingRoots);
+  add(TEX.ivy, buildIvy);
+  add(TEX.rubble, buildRubble);
+  add(TEX.fern, buildFern);
+  add(TEX.glowMoss, buildGlowMoss);
+  add(TEX.stalagmite, buildStalagmite);
+  add(TEX.relicClosed, () => buildRelic(false));
+  add(TEX.relicOpen, () => buildRelic(true));
+  add(TEX.caveBack, () => buildCaveBack(256, 360));
+  add(TEX.caveFar, () => buildCaveLayer(512, 200, 'far'));
+  add(TEX.caveMid, () => buildCaveLayer(512, 150, 'near'));
   add(TEX.cacheClosed, () => buildCache(false));
   add(TEX.cacheOpen, () => buildCache(true));
   add(TEX.iconWeapon, buildWeaponIcon);

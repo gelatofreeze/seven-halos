@@ -32,6 +32,16 @@ export const LORE: Record<string, LoreEntry> = {
       'A pilgrim’s note is pinned to the stone with a rusted nail: “Not yet. Whatever waits beyond is not ready for us. Or we are not ready for it.”',
     ],
   },
+  'lore.hollow-ledge': {
+    id: 'lore.hollow-ledge',
+    title: 'Words on the High Ledge',
+    region: 'root-hollow',
+    text: [
+      'Cut into the worked stone of the ledge, where no one standing below could read it:',
+      '“We kept the old rings here, the ones the air still listens to. One for each keeper of this place. Only one keeper came back for theirs.”',
+      'Beneath it, smaller: “If you are reading this, you climbed what we could not without one. Keep it. The air remembers whoever asks.”',
+    ],
+  },
 };
 
 export function getLore(id: string): LoreEntry {

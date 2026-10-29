@@ -16,6 +16,7 @@ interface CacheView {
   id: string;
   image: Phaser.GameObjects.Image;
   light: LightHandle;
+  textures: { closed: string; open: string };
 }
 
 /**
@@ -95,8 +96,10 @@ export class LevelRenderer {
         const image = scene.add.image(o.x, o.y, TEX.shrine).setOrigin(0.5, 1).setDepth(-5);
         this.shrines.push({ id: o.id, image, lights: [this.rig.add('shrine', o.x, o.y - 40)] });
       } else if (o.kind === 'cache') {
-        const image = scene.add.image(o.x, o.y, TEX.cacheClosed).setOrigin(0.5, 1).setDepth(-3);
-        this.caches.push({ id: o.id, image, light: this.rig.add('treasure', o.x, o.y - 8) });
+        const relic = o.look === 'relic';
+        const textures = relic ? { closed: TEX.relicClosed, open: TEX.relicOpen } : { closed: TEX.cacheClosed, open: TEX.cacheOpen };
+        const image = scene.add.image(o.x, o.y, textures.closed).setOrigin(0.5, 1).setDepth(-3);
+        this.caches.push({ id: o.id, image, textures, light: this.rig.add(relic ? 'relic' : 'treasure', o.x, o.y - (relic ? 12 : 8)) });
       } else if (o.kind === 'lore') {
         scene.add.image(o.x, o.y, TEX.lore).setOrigin(0.5, 1).setDepth(-4);
         this.rig.add('divine', o.x, o.y - 8);
@@ -115,7 +118,7 @@ export class LevelRenderer {
     }
     for (const c of this.caches) {
       const opened = this.progress?.hasFlag(c.id) ?? false;
-      c.image.setTexture(opened ? TEX.cacheOpen : TEX.cacheClosed);
+      c.image.setTexture(opened ? c.textures.open : c.textures.closed);
       this.rig.setLevel(c.light, opened ? 0 : 1);
     }
   }

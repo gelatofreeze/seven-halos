@@ -9,6 +9,8 @@ const TINTS: Record<NonNullable<EnvironmentConfig['backdrop']>, readonly [number
   forest: [0xb0c8c0, 0xffffff, 0xffffff, 0xb8e0b0],
   // Sanctuary: a warmer dusk.
   sanctuary: [0xffd6c4, 0xe0c4cc, 0xd8c0c0, 0xffe4c8],
+  // Underground: no tint over its own dark art; the fog turns a cold teal.
+  cave: [0xffffff, 0xffffff, 0xffffff, 0x406060],
 };
 
 interface Layer {
@@ -37,16 +39,18 @@ export class Backdrop {
     private readonly horizonY: number,
     environment: EnvironmentConfig = {},
   ) {
-    this.sky = scene.add.tileSprite(0, 0, 16, 16, TEX.sky).setOrigin(0, 0).setScrollFactor(0).setDepth(-100);
-    this.moon = scene.add.image(0, 0, TEX.moon).setScrollFactor(0).setDepth(-99);
+    const cave = environment.backdrop === 'cave';
+    // Underground there is no sky and no moon: just rock fading into darkness.
+    this.sky = scene.add.tileSprite(0, 0, 16, 16, cave ? TEX.caveBack : TEX.sky).setOrigin(0, 0).setScrollFactor(0).setDepth(-100);
+    this.moon = scene.add.image(0, 0, TEX.moon).setScrollFactor(0).setDepth(-99).setVisible(!cave);
     // Forests swap the ruined skyline for tree lines; everything else is shared.
     // The ruined-arch skyline belongs to the old ruins only; the sanctuary is ringed by
     // woods (no free-floating arches behind a building), the forest is all trees.
     const forest = environment.backdrop === 'forest';
     const wooded = forest || environment.backdrop === 'sanctuary';
-    this.addLayer(forest ? TEX.forestFar : TEX.far, 0.08, 0.05, -70, 0, -90);
-    this.addLayer(wooded ? TEX.forestMid : TEX.mid, 0.3, 0.2, -40, 0, -80);
-    this.addLayer(TEX.fog, 0.55, 0.4, -30, 6, -70).sprite.setAlpha(0.8);
+    this.addLayer(cave ? TEX.caveFar : forest ? TEX.forestFar : TEX.far, 0.08, 0.05, -70, 0, -90);
+    this.addLayer(cave ? TEX.caveMid : wooded ? TEX.forestMid : TEX.mid, 0.3, 0.2, -40, 0, -80);
+    this.addLayer(TEX.fog, 0.55, 0.4, -30, 6, -70).sprite.setAlpha(cave ? 0.35 : 0.8);
     if (environment.landmark) {
       // Between the sky and the far tree line, so the tree line hides its base.
       const image = scene.add.image(0, 0, TEX.castle).setOrigin(0.5, 1).setScrollFactor(0).setDepth(-95).setScale(0.6);

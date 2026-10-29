@@ -5,7 +5,7 @@ import { renderDevSection } from '../dev/devTools';
 import type { SaveManager } from '../persistence/SaveGame';
 import type { Simulation } from '../world/Simulation';
 import { JournalPanel } from './JournalPanel';
-import { backpackCells, equipMessage, equipmentSlots, itemDetails, progression, upgradeMessage, validTargets, type CellView } from './menuModel';
+import { backpackCells, equipMessage, equipmentSlots, itemDetails, progression, unequipMessage, upgradeMessage, validTargets, type CellView } from './menuModel';
 
 export type MenuLayout = 'wide' | 'split' | 'tabs';
 type Area = 'gear' | 'bag' | 'item' | 'upgrade';
@@ -286,7 +286,8 @@ export class PauseMenu {
       const icon = el('span', 'pm-slot-icon', item ? item.icon : slot.icon);
       const label = el('span', 'pm-slot-label', item ? `${item.name}${item.tier ? ` +${item.tier}` : ''}` : slot.label);
       b.append(icon, label);
-      b.title = slot.functional ? slot.label : `${slot.label} (coming later)`;
+      b.title = item?.effects.length ? `${slot.label}: ${item.name} — ${item.effects.join('; ')}` : slot.functional ? slot.label : `${slot.label} (coming later)`;
+      if (item?.effects.length) b.appendChild(el('span', 'pm-slot-effect', '✦'));
       b.setAttribute('aria-label', item ? `${slot.label}: ${item.name}${item.tier ? ` plus ${item.tier}` : ''}` : `${slot.label}: empty${slot.functional ? '' : ', coming later'}`);
       b.addEventListener('click', () => this.onSlotTap(slot.id));
       if (item) b.addEventListener('pointerdown', (e) => this.onPointerDown(e, item.uid, slot.id, b));
@@ -344,6 +345,13 @@ export class PauseMenu {
     );
     head.appendChild(names);
     this.detailsEl.append(head, el('p', 'pm-item-desc', d.description));
+    if (d.cell.effects.length) {
+      // What it does, in plain words, and whether it's doing it now.
+      const box = el('div', `pm-effects${d.cell.equippedIn ? ' active' : ''}`);
+      for (const line of d.cell.effects) box.appendChild(el('div', 'pm-effect', `✦ ${line}`));
+      if (d.effectNote) box.appendChild(el('div', 'pm-note', d.effectNote));
+      this.detailsEl.appendChild(box);
+    }
 
     if (d.stats) {
       const table = el('table', 'pm-stats');
@@ -366,6 +374,13 @@ export class PauseMenu {
       b.dataset.key = `equip:${a.slot}`;
       b.disabled = a.state !== 'ok';
       b.addEventListener('click', () => this.equip(this.selectedUid, a.slot));
+      actions.appendChild(b);
+    }
+    if (d.unequipFrom) {
+      const from = d.unequipFrom;
+      const b = el('button', 'pm-button subtle', 'Unequip');
+      b.dataset.key = `unequip:${from}`;
+      b.addEventListener('click', () => this.unequip(from));
       actions.appendChild(b);
     }
     if (d.actions.length === 0) actions.appendChild(el('p', 'pm-note', d.cell.kind === 'material' ? 'A material. It will be used for crafting in a later update.' : 'Cannot be equipped.'));
@@ -483,7 +498,16 @@ export class PauseMenu {
       return;
     }
     const def = getSlot(slot);
-    this.say(def.functional ? `Select an item that fits the ${def.label.toLowerCase()} slot.` : `${def.label} slot: armour and accessories arrive in a later update.`);
+    this.say(def.functional ? `Select an item that fits the ${def.label.toLowerCase()} slot.` : `${def.label} slot: this kind of equipment arrives in a later update.`);
+  }
+
+  private unequip(slot: SlotId): void {
+    const uid = this.sim.profile.loadout.get(slot);
+    const name = itemDetails(this.sim.profile, uid)?.cell.name ?? 'item';
+    const result = this.sim.requestUnequip(slot);
+    this.selectedUid = uid;
+    this.render();
+    this.say(unequipMessage(result, name));
   }
 
   private equip(uid: number, slot: SlotId): void {
@@ -504,18 +528,21 @@ export class PauseMenu {
       return;
     }
     if (kind === 'bag') {
+      let message = '';
       if (from !== 'bag') {
-        if (getSlot(from).required) {
-          this.say(equipMessage('required', '', from));
+        // Taking something off goes through the simulation (it may change what the player can do).
+        const result = this.sim.requestUnequip(from);
+        message = unequipMessage(result, itemDetails(profile, uid)?.cell.name ?? 'item');
+        if (result !== 'unequipped') {
+          this.say(message);
           return;
         }
-        profile.loadout.set(from, 0);
       }
       profile.inventory.move(uid, Number(value));
       profile.touch();
       this.selectedUid = uid;
       this.render();
-      this.say(from === 'bag' ? '' : `Unequipped ${itemDetails(profile, uid)?.cell.name ?? 'item'}.`);
+      this.say(message);
     }
   }
 

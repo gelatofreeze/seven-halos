@@ -1,5 +1,6 @@
 import type { DecorLayer, PropKind } from '../../world/Level';
 import { HALL, LINTEL, SCONCE } from '../textures/architectureArt';
+import { ANCIENT_TREE, BRIDGE_RUIN, HANGING_ROOTS, IVY, ROOT_HOLLOW, TREE_ROOTS } from '../textures/forestArt';
 import { TEX } from '../textures/registerTextures';
 import type { LightName } from './lighting';
 
@@ -57,7 +58,8 @@ export const PROP_VISUALS: Record<PropKind, PropVisual> = {
   altar: { texture: TEX.altar, depth: -4, lights: [{ name: 'divine', dx: 0, dy: -12 }], footprint: { w: 24, h: 16 }, support: 'floor' },
   torchPost: { texture: TEX.torchPost, depth: -4, lights: [{ name: 'torch', dx: 0, dy: -46, flameDy: -41 }], footprint: { w: 10, h: 44 }, support: 'floor' },
   tree: { texture: TEX.tree, footprint: { w: 18, h: 112 }, support: 'floor' },
-  ancientTree: { texture: TEX.ancientTree, footprint: { w: 80, h: 236 }, support: 'floor' },
+  // The roots spread over the mound's shoulders; the footprint is that spread.
+  ancientTree: { texture: TEX.ancientTree, footprint: { w: 112, h: ANCIENT_TREE.h }, support: 'floor' },
   bush: { texture: TEX.bush, depth: 4, footprint: { w: 24, h: 12 }, support: 'floor' },
   flowers: { texture: TEX.flowers, depth: 4, footprint: { w: 16, h: 8 }, support: 'floor' },
   ruin: { texture: TEX.ruin, footprint: { w: 16, h: 44 }, support: 'floor' },
@@ -72,8 +74,17 @@ export const PROP_VISUALS: Record<PropKind, PropVisual> = {
   doorArch: { texture: TEX.doorArch, depth: 2, footprint: { w: LINTEL.w, h: LINTEL.h }, support: 'embedded' },
   lightShaft: { texture: TEX.lightShaft, depth: 7, shaft: true, additive: true, footprint: { w: 104, h: 112 }, support: 'none' },
   waymarker: { texture: TEX.waymarker, depth: -4, lights: [{ name: 'lantern', dx: 6, dy: -16 }], footprint: { w: 16, h: 38 }, support: 'floor' },
-  bridgeRuin: { texture: TEX.bridgeRuin, depth: -8, footprint: { w: 224, h: 84 }, support: 'none' },
-  stream: { texture: TEX.stream, depth: 1, lights: [{ name: 'moon', dx: 0, dy: -4 }], footprint: { w: 192, h: 8 }, support: 'floor' },
+  // Arch remains hang under the spans, behind the tiles: structure, not footing.
+  bridgeRuin: { texture: TEX.bridgeRuin, depth: -8, alpha: 0.85, footprint: { w: BRIDGE_RUIN.w, h: BRIDGE_RUIN.h }, support: 'none' },
+  stream: { texture: TEX.stream, depth: -1, lights: [{ name: 'moon', dx: 0, dy: -4 }], footprint: { w: 192, h: 8 }, support: 'floor' },
   shrineArch: { texture: TEX.shrineArch, depth: -7, footprint: { w: 96, h: 84 }, support: 'floor' },
+  treeRoots: { texture: TEX.treeRoots, depth: 1, footprint: { w: TREE_ROOTS.w - 16, h: TREE_ROOTS.h }, support: 'floor' },
+  rootHollow: { texture: TEX.rootHollow, depth: -5, lights: [{ name: 'hollow', dx: 0, dy: -10 }], footprint: { w: ROOT_HOLLOW.w, h: ROOT_HOLLOW.h }, support: 'floor' },
+  hangingRoots: { texture: TEX.hangingRoots, depth: 1, footprint: { w: HANGING_ROOTS.w, h: HANGING_ROOTS.h }, support: 'mounted', mountPoint: { dx: 0, dy: -HANGING_ROOTS.h + 2 } },
+  ivy: { texture: TEX.ivy, depth: 1, footprint: { w: IVY.w, h: IVY.h }, support: 'mounted', mountPoint: { dx: 0, dy: -IVY.h + 2 } },
+  rubble: { texture: TEX.rubble, depth: 3, footprint: { w: 16, h: 8 }, support: 'floor' },
+  fern: { texture: TEX.fern, depth: 4, footprint: { w: 16, h: 10 }, support: 'floor' },
+  glowMoss: { texture: TEX.glowMoss, depth: 3, lights: [{ name: 'glowmoss', dx: 0, dy: -3 }], footprint: { w: 12, h: 6 }, support: 'floor' },
+  stalagmite: { texture: TEX.stalagmite, footprint: { w: 16, h: 28 }, support: 'floor' },
   gate: { texture: TEX.gate, depth: -4, lights: [{ name: 'seal', dx: 0, dy: -34 }], footprint: { w: 40, h: 72 }, support: 'floor' },
 };

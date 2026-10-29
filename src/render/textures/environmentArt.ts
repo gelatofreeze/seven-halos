@@ -1,13 +1,14 @@
 import { createCanvas, quantizeAlpha, seeded } from './canvas';
+import { drawRock } from './caveArt';
 import { PALETTE as C } from './palette';
 
 /** Tileset frame indices (16 x 16 each, laid out horizontally); one set of five per ground material. */
 export const TILESET = { top: 0, innerA: 1, innerB: 2, wall: 3, oneWay: 4, slab: 5, count: 6 } as const;
 /** First frame of each ground material's set. */
-export const GROUND_OFFSET = { stone: 0, earth: TILESET.count } as const;
+export const GROUND_OFFSET = { stone: 0, earth: TILESET.count, rock: TILESET.count * 2 } as const;
 
 export function buildTileset(ts: number): HTMLCanvasElement {
-  const { canvas, ctx } = createCanvas(ts * TILESET.count * 2, ts);
+  const { canvas, ctx } = createCanvas(ts * TILESET.count * 3, ts);
   const rand = seeded(7);
   const bricks = (ox: number, shade: string) => {
     ctx.fillStyle = C.stone;
@@ -71,6 +72,7 @@ export function buildTileset(ts: number): HTMLCanvasElement {
   ctx.fillRect(sx + 2, 0, 4, 1);
   ctx.fillRect(sx + 10, 6, 3, 2);
   drawEarth(ctx, ts, GROUND_OFFSET.earth * ts, rand);
+  drawRock(ctx, ts, GROUND_OFFSET.rock * ts, TILESET, rand);
   return canvas;
 }
 

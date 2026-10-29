@@ -10,6 +10,8 @@ export type TravelReason = 'exit' | 'death' | 'rest' | 'travel';
 
 export type SimEvent =
   | { type: 'jump'; x: number; y: number }
+  /** An equipment-granted jump in midair (the double jump). */
+  | { type: 'airJump'; x: number; y: number; facing: number }
   | { type: 'land'; x: number; y: number; hard: boolean }
   | { type: 'dodge'; x: number; y: number; facing: number }
   /** First active frame of an attack (swing). */

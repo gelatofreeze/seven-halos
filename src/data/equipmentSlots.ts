@@ -1,8 +1,9 @@
 /**
  * Equipment slots, as data. Each slot accepts one slot *type*; items declare
- * which slot types they fit (`ItemDefinition.equip`). Only the main hand
- * affects gameplay today; the rest are placeholders so the menu, saves and
- * rules already have a home for shields, armour, rings and tools.
+ * which slot types they fit (`ItemDefinition.equip`). The main hand and the
+ * two ring slots affect gameplay (rings through their passive effects); the
+ * rest are placeholders so the menu, saves and rules already have a home for
+ * shields, armour and tools.
  */
 export type SlotType = 'weapon' | 'shield' | 'head' | 'chest' | 'legs' | 'boots' | 'ring' | 'tool';
 export type SlotId = 'mainHand' | 'offHand' | 'head' | 'chest' | 'legs' | 'boots' | 'ring1' | 'ring2' | 'tool';
@@ -26,8 +27,8 @@ export const EQUIPMENT_SLOTS: readonly SlotDefinition[] = [
   { id: 'chest', label: 'Chest', accepts: 'chest', required: false, functional: false, icon: '▣' },
   { id: 'legs', label: 'Legs', accepts: 'legs', required: false, functional: false, icon: '∏' },
   { id: 'boots', label: 'Boots', accepts: 'boots', required: false, functional: false, icon: '⌐' },
-  { id: 'ring1', label: 'Ring', accepts: 'ring', required: false, functional: false, icon: '○' },
-  { id: 'ring2', label: 'Ring', accepts: 'ring', required: false, functional: false, icon: '○' },
+  { id: 'ring1', label: 'Ring', accepts: 'ring', required: false, functional: true, icon: '○' },
+  { id: 'ring2', label: 'Ring', accepts: 'ring', required: false, functional: true, icon: '○' },
   { id: 'tool', label: 'Tool', accepts: 'tool', required: false, functional: false, icon: '✦' },
 ];
 

@@ -65,13 +65,26 @@ export function validateWorld(regions: readonly RegionDefinition[] = REGIONS, st
         if (destDef?.dev && !regions.find((r) => r.id === id)?.dev) err(`${where}: exit "${o.id}" leads into a development-only region`);
       }
     }
-    // Every object can be reached from every arrival point (a jump-reach heuristic, not a physics proof).
+    // Every object can be reached from every arrival point (a jump-reach heuristic, not a physics proof;
+    // tests/traversal.test.ts and tests/air-jump.test.ts prove the key routes with real movement).
+    // Objects listed in `needsAirJump` must instead be out of base reach and within air-jump reach.
+    const def = regions.find((r) => r.id === id);
+    const gated = new Set(def?.needsAirJump ?? []);
+    for (const g of gated) if (!level.objects.some((o) => o.id === g)) err(`${where}: needsAirJump names unknown object "${g}"`);
+    const baseUp = Math.floor(PLAYER_MOVEMENT.jump.height / level.tileSize);
+    const airUp = Math.floor((PLAYER_MOVEMENT.jump.height + PLAYER_MOVEMENT.airJump.height) / level.tileSize);
     for (const a of Object.values(level.anchors)) {
-      const reach = reachable(level, Math.floor(a.x / level.tileSize), a.y / level.tileSize - 1);
+      const start = [Math.floor(a.x / level.tileSize), a.y / level.tileSize - 1] as const;
+      const reach = reachable(level, start[0], start[1], baseUp);
+      const airReach = gated.size ? reachable(level, start[0], start[1], airUp) : reach;
       for (const o of level.objects) {
-        const c = Math.floor(o.x / level.tileSize);
-        const r = o.y / level.tileSize - 1;
-        if (!reach.has(key(c, r))) err(`${where}: "${o.id}" can't be reached from anchor "${a.id}"`);
+        const cell = key(Math.floor(o.x / level.tileSize), o.y / level.tileSize - 1);
+        if (!gated.has(o.id)) {
+          if (!reach.has(cell)) err(`${where}: "${o.id}" can't be reached from anchor "${a.id}"`);
+        } else if (gated.has(o.id) && !gated.has(a.id)) {
+          if (reach.has(cell)) err(`${where}: "${o.id}" needs an air jump but the base jump already reaches it from "${a.id}"`);
+          if (!airReach.has(cell)) err(`${where}: "${o.id}" can't be reached from anchor "${a.id}" even with an air jump`);
+        }
       }
     }
   }
@@ -121,12 +134,10 @@ function landing(level: LevelData, c: number, r: number): number | null {
 
 /**
  * Standing cells reachable from (c, r): walk, fall, drop through one-way
- * platforms, and jump up to the player's jump height (in whole tiles) and a
- * conservative horizontal distance. Ceilings are ignored.
+ * platforms, and jump up to `up` whole tiles and a conservative horizontal
+ * distance. Ceilings are ignored.
  */
-function reachable(level: LevelData, c0: number, r0: number): Set<string> {
-  const ts = level.tileSize;
-  const up = Math.floor(PLAYER_MOVEMENT.jump.height / ts);
+function reachable(level: LevelData, c0: number, r0: number, up: number): Set<string> {
   const across = 5;
   const seen = new Set<string>();
   const queue: [number, number][] = [[c0, r0]];

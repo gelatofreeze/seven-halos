@@ -315,6 +315,7 @@ export class WorldScene extends Phaser.Scene {
     this.effects.handle(e);
     switch (e.type) {
       case 'jump':
+      case 'airJump':
         sfx.play('jump');
         break;
       case 'land':
@@ -388,7 +389,7 @@ export class WorldScene extends Phaser.Scene {
       case 'cacheOpened':
         sfx.play('rarePickup');
         this.levelRenderer.refreshObjects();
-        getServices(this).toasts.show(cacheMessage(e.items, e.gold, (id) => getItem(id).name), 'rare', 3.2);
+        getServices(this).toasts.show(cacheMessage(e.items, e.gold, (id) => getItem(id).name), 'rare', e.items.some((i) => getItem(i.item).equip?.length) ? 4.5 : 3.2);
         getServices(this).save.saveIfChanged();
         break;
       case 'reward':

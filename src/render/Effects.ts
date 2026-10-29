@@ -13,7 +13,9 @@ export class Effects {
   private readonly dust: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly flash: Phaser.GameObjects.Rectangle;
   /** Expanding rings for parries, posture breaks and full charge. */
-  private readonly rings: { g: Phaser.GameObjects.Graphics; t: number; dur: number; x: number; y: number; r: number; color: number }[] = [];
+  private readonly rings: { g: Phaser.GameObjects.Graphics; t: number; dur: number; x: number; y: number; r: number; color: number; squash: number }[] = [];
+  /** Motes shed downward by an air jump. */
+  private readonly airMotes: Phaser.GameObjects.Particles.ParticleEmitter;
   private ringIndex = 0;
   private flashTime = 0;
 
@@ -59,10 +61,22 @@ export class Effects {
         scale: { start: 1, end: 0.5 },
       })
       .setDepth(11);
+    this.airMotes = scene.add
+      .particles(0, 0, TEX.spark, {
+        emitting: false,
+        lifespan: { min: 260, max: 520 },
+        speedX: { min: -40, max: 40 },
+        speedY: { min: 30, max: 90 },
+        scale: { start: 0.8, end: 0 },
+        alpha: { start: 0.8, end: 0 },
+        tint: [0xbff0e4, 0x9fe8d8, 0xffffff],
+        blendMode: Phaser.BlendModes.ADD,
+      })
+      .setDepth(11);
     this.flash = scene.add.rectangle(0, 0, 8, 8, 0xffffff, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(60).setVisible(false);
     for (let i = 0; i < RINGS; i++) {
       const g = scene.add.graphics().setDepth(21).setBlendMode(Phaser.BlendModes.ADD);
-      this.rings.push({ g, t: 1, dur: 1, x: 0, y: 0, r: 0, color: 0xffffff });
+      this.rings.push({ g, t: 1, dur: 1, x: 0, y: 0, r: 0, color: 0xffffff, squash: 1 });
     }
   }
 
@@ -71,9 +85,10 @@ export class Effects {
     this.scene.cameras.main.shake(duration, intensity);
   }
 
-  private ring(x: number, y: number, radius: number, color: number, duration: number): void {
+  /** `squash` < 1 flattens the ring into a halo seen edge-on (the air jump). */
+  private ring(x: number, y: number, radius: number, color: number, duration: number, squash = 1): void {
     const r = this.rings[this.ringIndex++ % RINGS]!;
-    Object.assign(r, { t: 0, dur: duration, x, y, r: radius, color });
+    Object.assign(r, { t: 0, dur: duration, x, y, r: radius, color, squash });
   }
 
   handle(e: SimEvent): void {
@@ -81,6 +96,11 @@ export class Effects {
     switch (e.type) {
       case 'jump':
         this.dust.explode(4, e.x, e.y);
+        break;
+      case 'airJump':
+        // A faint halo of air pushed down from the feet: distinct from the ground jump's dust.
+        this.ring(e.x, e.y + 2, 16, 0xbff0e4, 0.32, 0.3);
+        this.airMotes.explode(7, e.x, e.y);
         break;
       case 'land':
         this.dust.explode(e.hard ? 10 : 5, e.x, e.y);
@@ -174,7 +194,9 @@ export class Effects {
       if (r.t >= 1) continue;
       r.t = Math.min(1, r.t + dt / r.dur);
       r.g.lineStyle(r.t < 0.5 ? 2 : 1, r.color, 1 - r.t);
-      r.g.strokeCircle(r.x, r.y, 3 + r.r * Math.sqrt(r.t));
+      const radius = 3 + r.r * Math.sqrt(r.t);
+      if (r.squash === 1) r.g.strokeCircle(r.x, r.y, radius);
+      else r.g.strokeEllipse(r.x, r.y, radius * 2, radius * 2 * r.squash);
     }
   }
 }

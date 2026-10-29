@@ -32,7 +32,15 @@ export type PropKind =
   | 'bridgeRuin'
   | 'stream'
   | 'shrineArch'
-  | 'gate';
+  | 'gate'
+  | 'treeRoots'
+  | 'rootHollow'
+  | 'hangingRoots'
+  | 'ivy'
+  | 'rubble'
+  | 'fern'
+  | 'glowMoss'
+  | 'stalagmite';
 
 /**
  * Draw layers for decoration, back to front. Gameplay never reads them.
@@ -66,6 +74,8 @@ export interface CacheReward {
   weaponXp?: number;
 }
 
+export type CacheLook = 'chest' | 'relic';
+
 /**
  * What a character in a level's ASCII rows means. Markers with an `id` are
  * stable world objects and must appear exactly once in their level.
@@ -77,8 +87,11 @@ export type MarkerDef =
   | { type: 'prop'; prop: PropKind }
   /** A shrine checkpoint: activated, rested at and travelled to. Also an arrival point. */
   | { type: 'checkpoint'; id: string; name: string; facing?: Facing }
-  /** A one-time treasure cache. */
-  | { type: 'cache'; id: string; reward: CacheReward }
+  /**
+   * A one-time treasure cache. `look: 'relic'` shows a single treasure set out
+   * on a stone (e.g. a ring) instead of a chest; the rules are the same.
+   */
+  | { type: 'cache'; id: string; reward: CacheReward; look?: CacheLook }
   /** Something readable (an inscription, a book): `lore` is an entry in data/lore.ts. Drawn as a lore stone. */
   | { type: 'lore'; lore: string }
   /**
@@ -101,10 +114,13 @@ export const DEFAULT_MARKERS: Readonly<Record<string, MarkerDef>> = {
 
 /** Per-region look. Optional; everything has a default. */
 export interface EnvironmentConfig {
-  /** Backdrop palette: the original moonlit ruins, or a forest variant. */
-  backdrop?: 'ruins' | 'forest' | 'sanctuary';
-  /** What `#` and `=` look like: worked stone, or earth with roots and branches. `%` and `-` are always masonry. */
-  ground?: 'stone' | 'earth';
+  /** Backdrop palette: the original moonlit ruins, a forest variant, or underground (no sky). */
+  backdrop?: 'ruins' | 'forest' | 'sanctuary' | 'cave';
+  /**
+   * What `#` and `=` look like: worked stone, earth with roots and branches,
+   * or natural cave rock with rock shelves. `%` and `-` are always masonry.
+   */
+  ground?: 'stone' | 'earth' | 'rock';
   /** Fireflies drifting low over the ground (forests). */
   fireflies?: number;
   /**
@@ -168,6 +184,7 @@ export interface CacheObject {
   kind: 'cache';
   id: string;
   reward: CacheReward;
+  look: CacheLook;
   x: number;
   y: number;
   zone: Rect;
@@ -315,7 +332,7 @@ export function parseLevel(def: LevelDefinition): LevelData {
           break;
         case 'cache':
           claim(m.id);
-          objects.push({ kind: 'cache', id: m.id, reward: m.reward, x, y, zone: { x: x - CACHE_ZONE.w / 2, y: y - CACHE_ZONE.h, w: CACHE_ZONE.w, h: CACHE_ZONE.h } });
+          objects.push({ kind: 'cache', id: m.id, reward: m.reward, look: m.look ?? 'chest', x, y, zone: { x: x - CACHE_ZONE.w / 2, y: y - CACHE_ZONE.h, w: CACHE_ZONE.w, h: CACHE_ZONE.h } });
           break;
         case 'lore':
           claim(m.lore);

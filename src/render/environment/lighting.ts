@@ -35,6 +35,11 @@ export const LIGHT_PRESETS = {
   lantern: { tint: 0xffd9a0, glow: { alpha: 0.38, scale: 0.7 }, spill: { alpha: 0.1, scale: 2.4 }, flicker: 0.08 },
   seal: { tint: 0xb89cff, glow: { alpha: 0.32, scale: 2.4 }, spill: { alpha: 0.08, scale: 4 }, flicker: 0, pulse: 0.2 },
   moon: { tint: 0xc8e0ff, glow: { alpha: 0.12, scale: 2 }, spill: { alpha: 0.06, scale: 3 }, flicker: 0 },
+  // The cold breath of a cave mouth: faint, slow, there to be noticed.
+  glowmoss: { tint: 0x8fe8d0, glow: { alpha: 0.26, scale: 0.6 }, spill: { alpha: 0.07, scale: 2.2 }, flicker: 0, pulse: 0.12 },
+  // A treasure set out to be found: pale, steady, unmistakable.
+  relic: { tint: 0xe4f4ff, glow: { alpha: 0.42, scale: 0.9 }, spill: { alpha: 0.1, scale: 2.6 }, halo: { tint: 0x9fe8d8, alpha: 0.16, scale: 1.8 }, flicker: 0, pulse: 0.5 },
+  hollow: { tint: 0x8fe0d0, glow: { alpha: 0.22, scale: 0.9 }, spill: { alpha: 0.05, scale: 2 }, flicker: 0, pulse: 0.18 },
 } as const satisfies Record<string, LightPreset>;
 
 export type LightName = keyof typeof LIGHT_PRESETS;

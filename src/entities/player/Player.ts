@@ -3,7 +3,7 @@ import { Health, Stamina } from '../../combat/Resources';
 import type { ActiveHitbox, AttackDefinition, Combatant, CombatStats, DamageResult, DefenseState, HitboxSink, RiposteTarget } from '../../combat/types';
 import { GUARD, PARRY, RIPOSTE } from '../../config/combat';
 import { PLAYER_COMBAT } from '../../config/player';
-import { jumpPhysics, PLAYER_MOVEMENT, type MovementTuning } from '../../config/movement';
+import { airJumpSpeed, jumpPhysics, PLAYER_MOVEMENT, type MovementTuning } from '../../config/movement';
 import { approach, sign, type Facing } from '../../core/math';
 import { setRect, type Rect } from '../../core/Rect';
 import { StateMachine } from '../../core/StateMachine';
@@ -36,6 +36,19 @@ export class Player implements Combatant {
   facing: Facing = 1;
   readonly gravity: number;
   readonly takeoffSpeed: number;
+  readonly airTakeoffSpeed: number;
+
+  /**
+   * Midair jumps the equipment allows per airborne spell (set by the
+   * simulation from the loadout's passive effects; see `setExtraAirJumps`).
+   * Capability only: what is left of it right now is `airJumpsLeft`.
+   */
+  extraAirJumps = 0;
+  /**
+   * Air jumps still available before landing. Refilled to `extraAirJumps`
+   * only while standing on the ground; never by equipment changes.
+   */
+  airJumpsLeft = 0;
 
   // Timers, in seconds.
   coyoteTimer = 0;
@@ -82,6 +95,7 @@ export class Player implements Combatant {
     const physics = jumpPhysics(tuning.jump);
     this.gravity = physics.gravity;
     this.takeoffSpeed = physics.takeoffSpeed;
+    this.airTakeoffSpeed = airJumpSpeed(tuning);
     this.body.grounded = this.body.probeGround(world);
     this.fsm = new StateMachine<Player, PlayerStateId>(this, PLAYER_STATES, 'idle');
   }
@@ -96,6 +110,17 @@ export class Player implements Combatant {
   /** Forget buffered presses (e.g. across a menu), so nothing fires on its own afterwards. */
   clearBufferedActions(): void {
     this.jumpBuffer = this.attackBuffer = this.heavyBuffer = this.dodgeBuffer = this.parryBuffer = 0;
+  }
+
+  /**
+   * Equipment changed the midair jump capability. Gaining it while airborne
+   * grants nothing until the next landing; losing it takes away any unused
+   * air jumps at once. So swapping a ring off and on can never refill a jump.
+   */
+  setExtraAirJumps(n: number): void {
+    this.extraAirJumps = Math.max(0, n);
+    if (this.body.grounded) this.airJumpsLeft = this.extraAirJumps;
+    else this.airJumpsLeft = Math.min(this.airJumpsLeft, this.extraAirJumps);
   }
 
   /** Equipment may only change in neutral states, never mid-action. */
@@ -137,6 +162,8 @@ export class Player implements Combatant {
       this.jumping = false;
     }
     this.coyoteTimer = this.body.grounded ? t.jump.coyoteTime : Math.max(0, this.coyoteTimer - dt);
+    // Standing on the ground (a genuine landing, not a swap) is the only refill.
+    if (this.body.grounded) this.airJumpsLeft = this.extraAirJumps;
 
     if (this.body.grounded && !this.isDead && this.isOnSafeGround()) {
       this.safeX = this.body.footX;
@@ -199,6 +226,15 @@ export class Player implements Combatant {
     return this.body.grounded || this.coyoteTimer > 0;
   }
 
+  /**
+   * An equipment-granted jump in midair: only once the ground jump is no
+   * longer possible (after coyote time), so walking off a ledge and jumping
+   * still uses the ordinary jump and keeps the air jump for later.
+   */
+  canAirJump(): boolean {
+    return !this.body.grounded && this.coyoteTimer <= 0 && this.airJumpsLeft > 0;
+  }
+
   canDodge(): boolean {
     return this.stamina.canSpend() && (this.body.grounded || this.tuning.dodge.allowInAir);
   }
@@ -216,6 +252,16 @@ export class Player implements Combatant {
     this.jumpCutApplied = false;
     this.stamina.spend(this.tuning.jump.staminaCost);
     this.events.push({ type: 'jump', x: this.body.footX, y: this.body.footY });
+  }
+
+  doAirJump(): void {
+    this.airJumpsLeft--;
+    this.body.vy = -this.airTakeoffSpeed;
+    this.jumpBuffer = 0;
+    this.jumping = true;
+    this.jumpCutApplied = false;
+    this.stamina.spend(this.tuning.airJump.staminaCost);
+    this.events.push({ type: 'airJump', x: this.body.footX, y: this.body.footY, facing: this.facing });
   }
 
   canParry(): boolean {
@@ -258,6 +304,10 @@ export class Player implements Combatant {
       }
       if (this.canJump()) {
         this.doJump();
+        return 'jump';
+      }
+      if (this.canAirJump()) {
+        this.doAirJump();
         return 'jump';
       }
     }

@@ -1,4 +1,5 @@
 import { FOREST_ROAD } from '../data/world/forestRoad';
+import { ROOT_HOLLOW } from '../data/world/rootHollow';
 import { SANCTUARY_OUTSKIRTS } from '../data/world/sanctuaryOutskirts';
 import { parseLevel, type CheckpointObject, type LevelData, type LevelDefinition } from './Level';
 
@@ -9,6 +10,12 @@ export interface RegionDefinition extends LevelDefinition {
    * player's location, and death respawns locally instead of at a shrine.
    */
   dev?: boolean;
+  /**
+   * Objects (by id) deliberately out of reach of the base jump and reachable
+   * only with an equipment-granted air jump. `validateWorld` checks both
+   * halves of that claim; every other object must be reachable without equipment.
+   */
+  needsAirJump?: readonly string[];
 }
 
 /** A place in the world: a region and an arrival point (an anchor or a checkpoint id) in it. */
@@ -18,7 +25,7 @@ export interface WorldLocation {
 }
 
 /** Shipping regions. A new region is added here (see docs/WORLD.md). */
-export const REGIONS: readonly RegionDefinition[] = [SANCTUARY_OUTSKIRTS, FOREST_ROAD];
+export const REGIONS: readonly RegionDefinition[] = [SANCTUARY_OUTSKIRTS, FOREST_ROAD, ROOT_HOLLOW];
 
 /** Where a new game begins: just outside the sanctuary. */
 export const WORLD_START: WorldLocation = { region: 'sanctuary-outskirts', anchor: 'start' };

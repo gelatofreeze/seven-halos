@@ -10,7 +10,8 @@ import { Enemy } from '../entities/enemy/Enemy';
 import { Player } from '../entities/player/Player';
 import { createInputFrame, type InputProvider } from '../input/InputActions';
 import { CollisionWorld } from '../physics/CollisionWorld';
-import { checkEquip, equipInto } from '../rpg/Loadout';
+import { checkEquip, equipInto, unequipSlot } from '../rpg/Loadout';
+import { equippedEffects, NO_EFFECTS, type ResolvedEffects } from '../rpg/PassiveEffects';
 import { PlayerProfile } from '../rpg/Profile';
 import { upgradeWeapon, type UpgradeResult } from '../rpg/WeaponUpgrades';
 import { Conversation } from '../rpg/Dialogue';
@@ -62,6 +63,7 @@ export type ShrineResult = 'ok' | 'not-at-shrine' | 'locked' | 'unknown' | 'busy
 
 /** 'invalid': not an owned item. Other failures come from the loadout rules (rpg/Loadout.ts). */
 export type EquipResult = 'equipped' | 'busy' | 'invalid' | 'incompatible' | 'blocked-by-two-handed' | 'required';
+export type UnequipResult = 'unequipped' | 'busy' | 'empty' | 'required';
 
 /** Extra reach around the player's body for collecting pickups, px. */
 const PICKUP_REACH = 6;
@@ -88,6 +90,8 @@ export class Simulation {
   readonly lootRandom: () => number;
   /** The profile's equipped weapon changed outside `requestEquip` (e.g. a save reset); apply when neutral. */
   private equipmentSyncPending = false;
+  /** Passive effects of the current loadout (derived, never saved). */
+  readonly effects: ResolvedEffects = { ...NO_EFFECTS };
   /** Set when the player walks out, dies (checkpoint mode), rests or travels. The simulation stops stepping. */
   pendingTravel: TravelRequest | null = null;
   /** The interactable the player is standing at (shrine, cache, door), or null. */
@@ -125,7 +129,7 @@ export class Simulation {
         if (!this.pendingTravel) this.requestTravelOut({ reason: 'death' });
       };
     }
-    this.applyEquippedWeapon();
+    this.applyEquipment();
     this.combatants.push(this.player);
     for (const spawn of level.enemySpawns) {
       // World rule: an ordinary enemy defeated since the last rest stays down, even across rooms.
@@ -162,7 +166,7 @@ export class Simulation {
     }
     if (this.equipmentSyncPending && this.player.canChangeEquipment()) {
       this.equipmentSyncPending = false;
-      this.applyEquippedWeapon();
+      this.applyEquipment();
     }
     inputs.sample(this.input);
     this.player.step(this.input, dt);
@@ -342,10 +346,29 @@ export class Simulation {
       profile.touch();
     }
     if (affectsPlayer) {
-      this.applyEquippedWeapon();
+      this.applyEquipment();
       this.events.push({ type: 'equip', weaponId: this.player.equipment.weapon.id });
     }
     return 'equipped';
+  }
+
+  /**
+   * Empty a slot (back to the backpack). Same timing rule as equipping:
+   * refused mid-action when the slot affects the player. The main hand can't
+   * be emptied.
+   */
+  requestUnequip(slot: SlotId): UnequipResult {
+    const loadout = this.profile.loadout;
+    if (loadout.get(slot) === 0) return 'empty';
+    if (getSlot(slot).required) return 'required';
+    if (getSlot(slot).functional && !this.player.canChangeEquipment()) return 'busy';
+    unequipSlot(loadout, slot);
+    this.profile.touch();
+    if (getSlot(slot).functional) {
+      this.applyEquipment();
+      this.events.push({ type: 'equip', weaponId: this.player.equipment.weapon.id });
+    }
+    return 'unequipped';
   }
 
   /**
@@ -369,14 +392,17 @@ export class Simulation {
 
   /** Re-read the profile's equipped weapon at the next neutral moment. */
   syncEquipmentFromProfile(): void {
-    if (this.player.canChangeEquipment()) this.applyEquippedWeapon();
+    if (this.player.canChangeEquipment()) this.applyEquipment();
     else this.equipmentSyncPending = true;
   }
 
-  private applyEquippedWeapon(): void {
+  /** Apply the loadout to the player: the main-hand weapon, then passive effects (rings). */
+  private applyEquipment(): void {
     const instance = this.profile.equippedWeapon();
     this.player.equipment.equipWeapon(this.profile.equippedWeaponId(), instance?.upgradeLevel ?? 0);
     this.player.refreshStats();
+    equippedEffects(this.profile, this.effects);
+    this.player.setExtraAirJumps(this.effects.extraAirJumps);
   }
 
   // ---- Rewards, loot and pickups ----------------------------------------------------------

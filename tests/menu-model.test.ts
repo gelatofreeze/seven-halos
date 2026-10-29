@@ -20,10 +20,10 @@ describe('Pause menu model', () => {
     expect(cells[1]).toMatchObject({ uid: scythe.uid, rarity: 'rare' });
   });
 
-  it('shows all nine slots; only the main hand is functional', () => {
+  it('shows all nine slots; the main hand and the two ring slots are functional', () => {
     const slots = equipmentSlots(new PlayerProfile());
     expect(slots.map((s) => s.slot.id)).toEqual(['mainHand', 'offHand', 'head', 'chest', 'legs', 'boots', 'ring1', 'ring2', 'tool']);
-    expect(slots.filter((s) => s.slot.functional).map((s) => s.slot.id)).toEqual(['mainHand']);
+    expect(slots.filter((s) => s.slot.functional).map((s) => s.slot.id)).toEqual(['mainHand', 'ring1', 'ring2']);
     expect(slots[0]!.item?.name).toBe("Pilgrim's Sword");
     expect(slots.slice(1).every((s) => s.item === null)).toBe(true);
   });

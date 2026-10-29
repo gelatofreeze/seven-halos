@@ -75,6 +75,9 @@ class Bot {
       const dx = targetX - this.x;
       if (!opts.untilRegion && Math.abs(dx) < 6 && this.sim.player.body.grounded) {
         this.input.frame.moveX = 0;
+        // Arrived: a jump queued on the last step must not fire while settling.
+        this.input.frame.jumpPressed = false;
+        this.jumpHold = 0;
         for (let k = 0; k < 10; k++) this.step();
         return true;
       }
@@ -141,17 +144,19 @@ describe('Traversal (real movement and collision)', () => {
     const bot = botAt({ region: 'forest-road', anchor: 'from-sanctuary' });
     const shrineX = objectX(bot, 'forest.shrine');
     let lowest = 0;
-    let highest = Infinity;
+    let highestStand = Infinity;
     const ok = bot.walkTo(shrineX, {
       onStep: () => {
         lowest = Math.max(lowest, bot.y);
-        highest = Math.min(highest, bot.y);
+        if (bot.sim.player.body.grounded) highestStand = Math.min(highestStand, bot.y);
       },
     });
     expect(ok).toBe(true);
-    // It stayed on the main path: never fell into the ravine, never went up the tree.
-    expect(lowest).toBeLessThanOrEqual(19 * 16);
-    expect(highest).toBeGreaterThan(14 * 16);
+    // It stayed on the main path: never fell into the ravine (the dip under the tree is 1 tile),
+    // never stood on the tree's limbs (the low one is at y 224), never went down into the hollow.
+    expect(lowest).toBeLessThanOrEqual(20 * 16);
+    expect(highestStand).toBeGreaterThan(14 * 16);
+    expect(bot.sim.level.id).toBe('forest-road');
     expect(bot.world.profile.world.hasFlag('forest.cache.canopy')).toBe(false);
     bot.interact();
     expect(bot.world.profile.world.isActive('forest.shrine')).toBe(true);
@@ -167,26 +172,35 @@ describe('Traversal (real movement and collision)', () => {
     expect(bot.walkTo(objectX(bot, 'sanctuary.shrine'))).toBe(true);
   });
 
-  it('falling into the ravine is safe: the player climbs out on the east side', () => {
-    const bot = botAt({ region: 'forest-road', anchor: 'from-sanctuary' });
-    // Walk off the west bridgehead without jumping.
-    bot.walkTo(tileX(38), { jumpGaps: false });
-    expect(bot.y).toBeGreaterThan(21 * 16);
-    const hp = bot.sim.player.health.current;
-    expect(bot.walkTo(tileX(52))).toBe(true);
-    expect(bot.y).toBe(19 * 16);
-    expect(bot.sim.player.health.current).toBe(hp);
+  it('falling into the ravine is safe: the rubble climbs back out, from either gap', () => {
+    for (const gap of [36, 42]) {
+      const bot = botAt({ region: 'forest-road', anchor: 'from-sanctuary' });
+      if (gap === 42) {
+        // Cross to the pier first, then step off its east side.
+        bot.walkTo(tileX(40));
+        expect(bot.y).toBe(19 * 16);
+      }
+      // Just past the edge, so the body is clear of it, without jumping.
+      bot.walkTo(gap * 16 + 12, { jumpGaps: false });
+      expect(bot.y).toBeGreaterThan(21 * 16);
+      const hp = bot.sim.player.health.current;
+      expect(bot.walkTo(tileX(52))).toBe(true);
+      expect(bot.y).toBe(19 * 16);
+      expect(bot.sim.player.health.current).toBe(hp);
+    }
   });
 
-  it('the optional canopy climb reaches the cache using the base jump only', () => {
+  it('the optional tree climb reaches the cache using the base jump only: roots, low limb, high limb', () => {
     const bot = botAt({ region: 'forest-road', anchor: 'from-sanctuary' });
-    bot.walkTo(tileX(51));
-    bot.jumpTo(tileX(54));
-    expect(bot.y).toBe(16 * 16);
+    bot.walkTo(tileX(54));
+    expect(bot.y).toBe(17 * 16);
+    bot.jumpTo(tileX(52));
+    expect(bot.y).toBe(14 * 16);
+    // Along the low limb to the trunk, then up to the high one.
+    bot.walkTo(tileX(54));
     bot.jumpTo(tileX(58));
-    expect(bot.y).toBe(13 * 16);
-    bot.jumpTo(tileX(54));
-    expect(bot.y).toBe(10 * 16);
+    expect(bot.y).toBe(11 * 16);
+    bot.walkTo(objectX(bot, 'forest.cache.canopy'));
     expect(bot.sim.focus?.id).toBe('forest.cache.canopy');
     bot.interact();
     expect(bot.world.profile.world.hasFlag('forest.cache.canopy')).toBe(true);

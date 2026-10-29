@@ -2,10 +2,11 @@ import { EQUIPMENT_SLOTS, getSlot, type SlotDefinition, type SlotId } from '../d
 import { getItem, type ItemKind, type Rarity } from '../data/items';
 import { getWeapon } from '../data/weapons';
 import { checkEquip, slotsFor, type EquipCheck } from '../rpg/Loadout';
+import { describeEffects } from '../rpg/PassiveEffects';
 import type { PlayerProfile } from '../rpg/Profile';
 import { quoteUpgrade, upgradeFailureMessage, type UpgradeQuote, type UpgradeResult } from '../rpg/WeaponUpgrades';
 import { compareStats, LOWER_IS_BETTER, WEAPON_STAT_LABELS, weaponStats, type WeaponStats } from '../rpg/weaponStats';
-import type { EquipResult } from '../world/Simulation';
+import type { EquipResult, UnequipResult } from '../world/Simulation';
 
 /**
  * Plain data for the pause menu, derived from the profile. DOM-free so the
@@ -23,6 +24,8 @@ export interface CellView {
   equippedIn: SlotId | null;
   /** Placeholder glyph until item art exists. */
   icon: string;
+  /** Passive effects in words (accessories), e.g. "Jump once more in midair". */
+  effects: string[];
 }
 
 export interface SlotView {
@@ -53,6 +56,10 @@ export interface DetailsView {
   /** Name of the weapon the deltas compare against. */
   comparedWith: string | null;
   actions: EquipAction[];
+  /** The slot it can be taken out of (null for the required main hand or when not equipped). */
+  unequipFrom: SlotId | null;
+  /** How its passive effects apply right now, for the details panel. */
+  effectNote: string | null;
 }
 
 const CATEGORY_LABEL: Record<string, string> = { 'straight-sword': 'Straight sword', scythe: 'Scythe' };
@@ -61,6 +68,7 @@ const CATEGORY_ICON: Record<string, string> = { 'straight-sword': '†', scythe:
 export function iconFor(itemId: string): string {
   const def = getItem(itemId);
   if (def.weaponId) return CATEGORY_ICON[getWeapon(def.weaponId).category] ?? '⚔';
+  if (def.equip?.includes('ring')) return '◎';
   return def.kind === 'material' ? '∴' : '◆';
 }
 
@@ -79,6 +87,7 @@ export function cellFor(profile: PlayerProfile, uid: number): CellView | null {
     maxTier: def.weaponId ? getWeapon(def.weaponId).upgrade.maxLevel : 0,
     equippedIn: profile.loadout.slotOf(uid),
     icon: iconFor(def.id),
+    effects: describeEffects(def.effects),
   };
 }
 
@@ -129,8 +138,11 @@ export function itemDetails(profile: PlayerProfile, uid: number): DetailsView | 
     label: getSlot(slot).label,
     state: profile.loadout.get(slot) === uid ? 'equipped' : checkEquip(profile.inventory, profile.loadout, uid, slot),
   }));
-  const category = def.weaponId ? (CATEGORY_LABEL[getWeapon(def.weaponId).category] ?? 'Weapon') : def.kind === 'material' ? 'Material' : 'Item';
-  return { cell, description: def.description, category, stats, comparedWith, actions };
+  const category = def.weaponId ? (CATEGORY_LABEL[getWeapon(def.weaponId).category] ?? 'Weapon') : def.kind === 'material' ? 'Material' : def.equip?.includes('ring') ? 'Ring' : 'Item';
+  const unequipFrom = cell.equippedIn && !getSlot(cell.equippedIn).required ? cell.equippedIn : null;
+  let effectNote: string | null = null;
+  if (cell.effects.length) effectNote = cell.equippedIn && getSlot(cell.equippedIn).functional ? 'Active while worn.' : `Works only while worn${slotsFor(cell.itemId).length ? ` (${getSlot(slotsFor(cell.itemId)[0]!).label.toLowerCase()} slot)` : ''}.`;
+  return { cell, description: def.description, category, stats, comparedWith, actions, unequipFrom, effectNote };
 }
 
 export interface ProgressionView {
@@ -153,7 +165,7 @@ export function equipMessage(result: EquipResult, name: string, slot: SlotId = '
     case 'equipped':
       return `Equipped ${name}.`;
     case 'busy':
-      return 'Finish your current action before changing weapons.';
+      return 'Finish your current action before changing equipment.';
     case 'incompatible':
       return `${name} can't go in the ${where} slot.`;
     case 'blocked-by-two-handed':
@@ -162,6 +174,19 @@ export function equipMessage(result: EquipResult, name: string, slot: SlotId = '
       return 'Your main hand always holds a weapon. Equip another weapon instead.';
     default:
       return 'That item cannot be equipped.';
+  }
+}
+
+export function unequipMessage(result: UnequipResult, name: string): string {
+  switch (result) {
+    case 'unequipped':
+      return `Unequipped ${name}.`;
+    case 'busy':
+      return 'Finish your current action before changing equipment.';
+    case 'required':
+      return equipMessage('required', name);
+    default:
+      return '';
   }
 }
 
