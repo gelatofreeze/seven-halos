@@ -89,3 +89,29 @@ describe('Pause menu model', () => {
     expect(chooseLayout(1280, 720)).toBe('wide');
   });
 });
+
+describe('Pause menu model: rings', () => {
+  it('a ring says what it does, where it goes, and whether it is working', () => {
+    const sim = flatSim();
+    const ring = sim.profile.inventory.add('updraft-ring');
+    let d = itemDetails(sim.profile, ring.uid)!;
+    expect(d.category).toBe('Ring');
+    expect(d.cell.effects).toEqual(['Jump once more in midair']);
+    expect(d.effectNote).toBe('Works only while worn (ring slot).');
+    expect(d.actions.map((a) => [a.slot, a.state])).toEqual([
+      ['ring1', 'ok'],
+      ['ring2', 'ok'],
+    ]);
+    expect(d.unequipFrom).toBeNull();
+    expect(validTargets(sim.profile, ring.uid)).toEqual(['ring1', 'ring2']);
+    expect(sim.requestEquip(ring.uid, 'ring2')).toBe('equipped');
+    d = itemDetails(sim.profile, ring.uid)!;
+    expect(d.effectNote).toBe('Active while worn.');
+    expect(d.unequipFrom).toBe('ring2');
+    expect(equipmentSlots(sim.profile).find((s) => s.slot.id === 'ring2')!.item?.effects).toEqual(['Jump once more in midair']);
+    // Weapons stay as they were: no effects box, no unequip for the main hand.
+    const sword = itemDetails(sim.profile, sim.profile.equippedWeaponUid)!;
+    expect(sword.cell.effects).toEqual([]);
+    expect(sword.unequipFrom).toBeNull();
+  });
+});
